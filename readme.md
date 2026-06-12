@@ -8,7 +8,7 @@
 | **Hackathon** | HacktoSkill 2026 |
 | **Team** | Viltrumites |
 | **Domain** | AI / Human Resources Technology |
-| **Tech Stack** | FastAPI (Python) + React (Vite) + Gemini API + Semantic Embeddings |
+| **Tech Stack** | FastAPI (Python) + React (Vite) + Local LLM Model + Semantic Embeddings |
 
 ---
 
@@ -151,6 +151,8 @@ npm run dev
 - [X] Finalise tech stack and confirm Gemini API as LLM provider
 - [X] Set up project repo with `backend/` and `frontend/` structure
 - [X] Local Embedding & Skill Matching
+- [ ] Finalise tech stack and confirm Local Ollama Model as LLM provider
+- [ ] Set up project repo with `backend/` and `frontend/` structure
 - [ ] Build JD parser and resume parser (LLM-powered) — **first milestone**
 - [ ] Implement hybrid scoring engine with configurable weights
 - [ ] Develop React dashboard with radar charts and Blindspot Visualizer
@@ -163,7 +165,7 @@ npm run dev
 
 | Question | Options / Notes |
 |---|---|
-| **AI/LLM Provider** | Google Gemini API preferred (`google-genai` SDK) |
+| **AI/LLM Provider** |Local Models |
 | **Backend Language** | Python + FastAPI — recommended for NLP/embeddings |
 | **Demo Data** | Pre-configured Candidate A vs. Candidate B scenario for Blindspot Visualizer |
 | **Verification Plan** | Unit tests for scoring engine + manual upload test with Lead Developer JD |
