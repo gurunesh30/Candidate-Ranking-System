@@ -8,7 +8,7 @@
 | **Hackathon** | HacktoSkill 2026 |
 | **Team** | Viltrumites |
 | **Domain** | AI / Human Resources Technology |
-| **Tech Stack** | FastAPI (Python) + React (Vite) + Gemini API + Semantic Embeddings |
+| **Tech Stack** | FastAPI (Python) + React (Vite) + Local LLM Model + Semantic Embeddings |
 
 ---
 
