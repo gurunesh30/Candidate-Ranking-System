@@ -64,15 +64,21 @@ Rather than a hard cutoff, a borderline candidate buffer surfaces candidates who
 
 ## Technical Architecture
 
-### Backend — FastAPI (Python)
+### Backend — FastAPI (Python) + C++ Core
 
 ```
 backend/
-├── main.py           # FastAPI app — ranking, filter, and weight-adjustment endpoints
-├── jd_parser.py      # Parses JD via LLM into Core Intent, Behavioral Traits, Technical Skills
-├── resume_parser.py  # Extracts chronological growth, STAR achievements, skill vectors
-├── ranker.py         # Semantic cosine similarity + LLM dimensional scoring + trajectory evaluation
-└── llm_helper.py     # Interfaces with Google Gemini API for structured evaluations
+├── main.py                # FastAPI app — ranking & sample-evaluation endpoints
+├── evaluate_sample.py     # CLI script — loads sample_candidates.json, posts 2 candidates for evaluation
+├── compile.py             # Compiles the C++ ranker into a native Python extension (.pyd)
+├── requirements.txt       # Python dependencies
+├── app/
+│   ├── schemas.py         # Pydantic models matching the HacktoSkill candidate JSON schema
+│   ├── stage_1_skills.py  # Semantic skill matching via sentence-transformers + C++ cosine engine
+│   ├── stage_2_behavioral.py  # STAR behavioral evaluation via local Ollama LLM (qwen2.5:3b)
+│   └── utils.py           # .docx text extractor & sample candidate JSON loader
+└── src/
+    └── ranker.cpp         # High-speed C++ cosine similarity engine (pybind11)
 ```
 
 ### Frontend — React + Vite
@@ -106,6 +112,26 @@ Resume ──────────────► Resume Behavioral &  ──
 
 ---
 
+## Sample Candidate Evaluation
+
+The system can load candidate profiles directly from the HacktoSkill challenge dataset (`sample_candidates.json`) and evaluate them against the provided job description (`job_description.docx`) — no manual data entry required.
+
+### How It Works
+1. The `.docx` job description is parsed natively using Python's `zipfile` + `xml.etree` (zero external dependencies).
+2. The first **2** candidate records are extracted from `sample_candidates.json`.
+3. Each candidate is validated against the full Pydantic schema and evaluated through the two-stage pipeline.
+4. Results are returned as a ranked JSON payload with scores and AI justifications.
+
+### Two Ways to Run
+
+| Method | Command / Action | Server Required? |
+|---|---|---|
+| **Standalone script** | `python evaluate_sample.py --standalone` | No |
+| **HTTP POST to API** | `python evaluate_sample.py` | Yes (`uvicorn main:app`) |
+| **Direct API call** | `POST /api/rank/evaluate/sample` with `{}` body | Yes |
+
+---
+
 ## Recruiter Dashboard Features
 
 - **Dynamic weight sliders** — adjust dimension weights live without re-running the full pipeline
@@ -120,29 +146,56 @@ Resume ──────────────► Resume Behavioral &  ──
 
 ### Repository Structure
 ```
-resume-ranker-ai/
+Candidate-Ranking-System/
 ├── backend/
-└── frontend/
+│   ├── main.py
+│   ├── evaluate_sample.py
+│   ├── compile.py
+│   ├── app/
+│   │   ├── schemas.py
+│   │   ├── stage_1_skills.py
+│   │   ├── stage_2_behavioral.py
+│   │   └── utils.py
+│   └── src/
+│       └── ranker.cpp
+└── frontend/   (planned)
 ```
 
 ### Prerequisites
-- Python 3.10+ with FastAPI
-- Node.js with Vite
-- Google Gemini API key (`google-genai` SDK)
+- Python 3.10+
+- C++ compiler (MSVC on Windows / GCC on Linux) for pybind11
+- [Ollama](https://ollama.com/) with `qwen2.5:3b` model (optional — falls back gracefully)
+- Node.js with Vite (for frontend, when available)
 
 ### Quick Start
 
 ```bash
-# Backend
+# 1. Set up the backend
 cd backend
 pip install -r requirements.txt
+
+# 2. Compile the C++ ranking engine
+python compile.py
+
+# 3. (Optional) Pull the Ollama model for Stage 2 behavioral evaluation
+ollama pull qwen2.5:3b
+
+# 4. Run the API server
 uvicorn main:app --reload
 
-# Frontend
-cd frontend
-npm install
-npm run dev
+# 5. Evaluate 2 sample candidates (standalone — no server needed)
+python evaluate_sample.py --standalone
+
+# 6. Or evaluate via the running API server
+python evaluate_sample.py
 ```
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/rank/evaluate` | Evaluate a custom list of candidates against a job description |
+| POST | `/api/rank/evaluate/sample` | Auto-load and evaluate 2 sample candidates from the challenge dataset |
 
 ---
 
@@ -150,10 +203,11 @@ npm run dev
 
 - [X] Finalise tech stack and confirm Gemini API as LLM provider
 - [X] Set up project repo with `backend/` and `frontend/` structure
-- [X] Local Embedding & Skill Matching
-- [ ] Finalise tech stack and confirm Local Ollama Model as LLM provider
-- [ ] Set up project repo with `backend/` and `frontend/` structure
-- [ ] Build JD parser and resume parser (LLM-powered) — **first milestone**
+- [X] Local Embedding & Skill Matching (C++ cosine engine via pybind11)
+- [X] Integrate Local Ollama Model (`qwen2.5:3b`) for STAR behavioral evaluation
+- [X] Implement sample candidate evaluation pipeline (`evaluate_sample.py` + `/api/rank/evaluate/sample`)
+- [X] Native `.docx` JD parser and JSON candidate loader (zero-dependency)
+- [ ] Build JD parser and resume parser (LLM-powered) — **next milestone**
 - [ ] Implement hybrid scoring engine with configurable weights
 - [ ] Develop React dashboard with radar charts and Blindspot Visualizer
 - [ ] Prepare demo dataset: Candidate A (keyword-stuffer) vs. Candidate B (hidden gem)
