@@ -1,17 +1,50 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
+from typing import List, Dict, Optional
 
-class ProfileModel(BaseModel):
+class SalaryRangeModel(BaseModel):
+    min: float
+    max: float
+
+class RedRobSignalsModel(BaseModel):
+    profile_completeness_score: float
+    signup_date: Optional[str] = None
+    last_active_date: Optional[str] = None
+    open_to_work_flag: bool
+    profile_views_received_30d: Optional[int] = 0
+    applications_submitted_30d: Optional[int] = 0
+    recruiter_response_rate: float
+    avg_response_time_hours: Optional[float] = 0.0
+    github_activity_score: float
+    connection_count: Optional[int] = 0
+    endorsements_received: Optional[int] = 0
+    notice_period_days: int
+    expected_salary_range_inr_lpa: SalaryRangeModel
+    preferred_work_mode: Optional[str] = "onsite"
+    willing_to_relocate: Optional[bool] = False
+    search_appearance_30d: Optional[int] = 0
+    saved_by_recruiters_30d: Optional[int] = 0
+    interview_completion_rate: Optional[float] = 0.0
+    offer_acceptance_rate: Optional[float] = 0.0
+    verified_email: Optional[bool] = True
+    verified_phone: Optional[bool] = False
+    linkedin_connected: Optional[bool] = False
+    skill_assessment_scores: Dict[str, float] = Field(default_factory=dict)
+
+
+# =====================================================================
+# CORE CANDIDATE PROFILE & LIFECYCLE SCHEMAS
+# =====================================================================
+class ProfileDetailsModel(BaseModel):
     anonymized_name: str
     headline: str
     summary: str
     location: str
     country: str
     years_of_experience: float
-    current_title: str
-    current_company: str
-    current_company_size: str
-    current_industry: str
+    current_title: Optional[str] = None
+    current_company: Optional[str] = None
+    current_company_size: Optional[str] = None
+    current_industry: Optional[str] = None
 
 class CareerHistoryModel(BaseModel):
     company: str
@@ -20,8 +53,8 @@ class CareerHistoryModel(BaseModel):
     end_date: Optional[str] = None
     duration_months: int
     is_current: bool
-    industry: str
-    company_size: str
+    industry: Optional[str] = None
+    company_size: Optional[str] = None
     description: str
 
 class EducationModel(BaseModel):
@@ -31,58 +64,28 @@ class EducationModel(BaseModel):
     start_year: int
     end_year: int
     grade: Optional[str] = None
-    tier: str
+    tier: Optional[str] = "tier_4"
 
 class SkillModel(BaseModel):
     name: str
     proficiency: str
-    endorsements: int
-    duration_months: int = 0
+    endorsements: Optional[int] = 0
+    duration_months: int
 
-class CertificationModel(BaseModel):
-    name: str
-    issuer: str
-    year: int
 
-class LanguageModel(BaseModel):
-    language: str
-    proficiency: str
-
-class SalaryRangeModel(BaseModel):
-    min: float
-    max: float
-
-class RedrobSignalsModel(BaseModel):
-    profile_completeness_score: float
-    signup_date: str
-    last_active_date: str
-    open_to_work_flag: bool
-    profile_views_received_30d: int
-    applications_submitted_30d: int
-    recruiter_response_rate: float
-    avg_response_time_hours: float
-    skill_assessment_scores: Dict[str, float]
-    connection_count: int
-    endorsements_received: int
-    notice_period_days: int
-    expected_salary_range_inr_lpa: SalaryRangeModel
-    preferred_work_mode: str
-    willing_to_relocate: bool
-    github_activity_score: float
-    search_appearance_30d: int
-    saved_by_recruiters_30d: int
-    interview_completion_rate: float
-    offer_acceptance_rate: float
-    verified_email: bool
-    verified_phone: bool
-    linkedin_connected: bool
-
-class CandidateInput(BaseModel):
-    candidate_id: str = Field(..., pattern=r"^CAND_[0-9]{7}$")
-    profile: ProfileModel
+# =====================================================================
+# MAIN PIPELINE INPUT SCHEMA
+# =====================================================================
+class CandidateModel(BaseModel):
+    candidate_id: str
+    profile: ProfileDetailsModel
     career_history: List[CareerHistoryModel]
     education: List[EducationModel]
     skills: List[SkillModel]
-    certifications: Optional[List[CertificationModel]] = []
-    languages: Optional[List[LanguageModel]] = []
-    redrob_signals: RedrobSignalsModel
+    certifications: List[str] = Field(default_factory=list)
+    languages: List[Dict[str, str]] = Field(default_factory=list)
+    redrob_signals: RedRobSignalsModel  # Phase 3 data contract binding
+
+class RankingPayloadSchema(BaseModel):
+    job_description: str
+    candidates: List[CandidateModel]

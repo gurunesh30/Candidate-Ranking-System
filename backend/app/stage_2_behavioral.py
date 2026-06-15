@@ -1,9 +1,9 @@
 import requests
 import json
-from app.schemas import ProfileModel, CareerHistoryModel
+from app.schemas import ProfileDetailsModel, CareerHistoryModel
 from typing import List
 
-def evaluate_behavioral_star(job_description: str, profile: ProfileModel, career_history: List[CareerHistoryModel]) -> tuple:
+def evaluate_behavioral_star(job_description: str, profile: ProfileDetailsModel, career_history: List[CareerHistoryModel]) -> tuple:
     """
     Extracts deep narrative text from candidate profiles and evaluates behavioral 
     competency using a free local Ollama instance.
