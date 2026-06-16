@@ -1,6 +1,6 @@
 // Dashboard Page - Main recruiter interface with candidate ranking
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiSearch, FiFilter, FiSliders, FiTrendingUp } from 'react-icons/fi';
 import CandidateCard from '../components/CandidateCard';
 import WeightSliderPanel from '../components/WeightSliderPanel';
@@ -10,6 +10,8 @@ import './Dashboard.css';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get('session');
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,11 +34,11 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadCandidates();
-  }, []);
+  }, [searchParams]);
 
   const loadCandidates = async () => {
     try {
-      const data = await api.getCandidates();
+      const data = await api.getCandidates(sessionId);
       setCandidates(data);
       
       // Find top candidate
@@ -235,7 +237,7 @@ const Dashboard = () => {
               </div>
             ) : (
               filteredCandidates.map(candidate => (
-                <CandidateCard key={candidate.id} candidate={candidate} />
+                <CandidateCard key={candidate.id} candidate={candidate} sessionId={sessionId} />
               ))
             )}
           </div>

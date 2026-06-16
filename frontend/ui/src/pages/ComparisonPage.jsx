@@ -15,20 +15,21 @@ const ComparisonPage = () => {
   const [candidate1, setCandidate1] = useState(null);
   const [candidate2, setCandidate2] = useState(null);
   const [loading, setLoading] = useState(false);
+  const sessionId = searchParams.get('session');
 
   useEffect(() => {
     loadAllCandidates();
-  }, []);
+  }, [sessionId]);
 
   useEffect(() => {
     if (selected1 && selected2) {
       loadSelectedCandidates();
     }
-  }, [selected1, selected2]);
+  }, [selected1, selected2, candidates]);
 
   const loadAllCandidates = async () => {
     try {
-      const data = await api.getCandidates();
+      const data = await api.getCandidates(sessionId);
       setCandidates(data);
       
       // Auto-select first two if none selected
@@ -48,9 +49,17 @@ const ComparisonPage = () => {
     
     setLoading(true);
     try {
-      const result = await api.compareCandidates(selected1, selected2);
-      setCandidate1(result.candidate1);
-      setCandidate2(result.candidate2);
+      const c1 = candidates.find(c => c.id.toString() === selected1.toString());
+      const c2 = candidates.find(c => c.id.toString() === selected2.toString());
+      
+      if (c1 && c2) {
+        setCandidate1(c1);
+        setCandidate2(c2);
+      } else {
+        const result = await api.compareCandidates(selected1, selected2);
+        setCandidate1(result.candidate1);
+        setCandidate2(result.candidate2);
+      }
     } catch (error) {
       console.error('Error loading selected candidates:', error);
     } finally {
@@ -68,7 +77,7 @@ const ComparisonPage = () => {
     <div className="comparison-page">
       {/* Header */}
       <div className="comparison-header-bar">
-        <button onClick={() => navigate('/dashboard')} className="back-button">
+        <button onClick={() => navigate(sessionId ? `/dashboard?session=${sessionId}` : '/dashboard')} className="back-button">
           <FiArrowLeft className="btn-icon" />
           Back to Dashboard
         </button>

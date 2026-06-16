@@ -19,6 +19,7 @@ function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/candidate/:id" element={<CandidateDetail />} />
+            <Route path="/candidate/:sessionId/:id" element={<CandidateDetail />} />
             <Route path="/comparison" element={<ComparisonPage />} />
           </Routes>
         </main>

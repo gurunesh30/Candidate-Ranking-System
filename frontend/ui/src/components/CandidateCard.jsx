@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FiMapPin, FiBriefcase, FiArrowRight } from 'react-icons/fi';
 
-const CandidateCard = ({ candidate }) => {
+const CandidateCard = ({ candidate, sessionId }) => {
   // Determine score color based on overall score
   const getScoreColor = (score) => {
     if (score >= 90) return '#10b981'; // Green
@@ -83,7 +83,7 @@ const CandidateCard = ({ candidate }) => {
         </div>
 
         {/* View Details Button */}
-        <Link to={`/candidate/${candidate.id}`} className="view-details-btn">
+        <Link to={sessionId ? `/candidate/${sessionId}/${candidate.id}` : `/candidate/${candidate.id}`} className="view-details-btn">
           View Details
           <FiArrowRight className="btn-icon" />
         </Link>

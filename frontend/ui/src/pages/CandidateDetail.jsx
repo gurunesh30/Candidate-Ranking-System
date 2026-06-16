@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   FiArrowLeft, FiMapPin, FiBriefcase, FiAward, 
-  FiBook, FiCheckCircle, FiTrendingUp, FiAlertCircle 
+  FiBook, FiCheckCircle, FiTrendingUp, FiAlertCircle, FiZap 
 } from 'react-icons/fi';
 import RadarChartComponent from '../components/RadarChartComponent';
 import BlindspotVisualizer from '../components/BlindspotVisualizer';
@@ -12,24 +12,55 @@ import api from '../services/api';
 import './CandidateDetail.css';
 
 const CandidateDetail = () => {
-  const { id } = useParams();
+  const { sessionId, id } = useParams();
   const navigate = useNavigate();
   const [candidate, setCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
 
+  const [justification, setJustification] = useState('');
+  const [loadingJustification, setLoadingJustification] = useState(false);
+
   useEffect(() => {
     loadCandidate();
-  }, [id]);
+  }, [id, sessionId]);
+
+  useEffect(() => {
+    if (activeTab === 'insights' && sessionId && !justification && !loadingJustification) {
+      loadJustification();
+    }
+  }, [activeTab, sessionId, id]);
 
   const loadCandidate = async () => {
     try {
-      const data = await api.getCandidateById(id);
+      let data = null;
+      if (sessionId) {
+        const candidates = await api.getCandidates(sessionId);
+        data = candidates.find(c => c.id.toString() === id.toString());
+      }
+      
+      if (!data) {
+        data = await api.getCandidateById(id);
+      }
+      
       setCandidate(data);
       setLoading(false);
     } catch (error) {
       console.error('Error loading candidate:', error);
       setLoading(false);
+    }
+  };
+
+  const loadJustification = async () => {
+    setLoadingJustification(true);
+    try {
+      const text = await api.getCandidateJustification(sessionId, id);
+      setJustification(text);
+    } catch (error) {
+      console.error('Error loading justification:', error);
+      setJustification('Failed to retrieve AI justification reasoning from MongoDB.');
+    } finally {
+      setLoadingJustification(false);
     }
   };
 
@@ -67,7 +98,7 @@ const CandidateDetail = () => {
     <div className="candidate-detail-page">
       {/* Header with Back Button */}
       <div className="detail-header">
-        <button onClick={() => navigate('/dashboard')} className="back-button">
+        <button onClick={() => navigate(sessionId ? `/dashboard?session=${sessionId}` : '/dashboard')} className="back-button">
           <FiArrowLeft className="btn-icon" />
           Back to Dashboard
         </button>
@@ -75,7 +106,7 @@ const CandidateDetail = () => {
         <div className="header-actions">
           <button 
             className="compare-btn"
-            onClick={() => navigate(`/comparison?c1=${candidate.id}`)}
+            onClick={() => navigate(sessionId ? `/comparison?session=${sessionId}&c1=${candidate.id}` : `/comparison?c1=${candidate.id}`)}
           >
             Compare Candidate
           </button>
@@ -247,26 +278,42 @@ const CandidateDetail = () => {
                   <FiTrendingUp className="card-icon" />
                   <h3>Skill Breakdown</h3>
                 </div>
-                <RadarChartComponent data={candidate.scoreBreakdown} />
+                <RadarChartComponent data={candidate} />
                 
                 <div className="score-breakdown-list">
-                  {Object.entries(candidate.scoreBreakdown).map(([key, value]) => (
-                    <div key={key} className="breakdown-item">
-                      <span className="breakdown-label">
-                        {key.replace(/([A-Z])/g, ' $1').trim()}
-                      </span>
-                      <div className="breakdown-bar">
-                        <div 
-                          className="breakdown-fill"
-                          style={{ 
-                            width: `${value}%`,
-                            backgroundColor: getScoreColor(value)
-                          }}
-                        ></div>
+                  {(() => {
+                    const b = candidate.breakdown || {
+                      stage_1_skills_semantic: candidate.scoreBreakdown?.semanticMatch || 0,
+                      stage_2_behavioral_star: candidate.scoreBreakdown?.skillMatch || 0,
+                      stage_3_platform_signals: candidate.scoreBreakdown?.behavioralMatch || 0,
+                    };
+                    const career = candidate.scoreBreakdown?.careerProgression || 80;
+                    const domain = candidate.scoreBreakdown?.domainExperience || 80;
+                    
+                    const list = [
+                      { label: 'Semantic Match', value: b.stage_1_skills_semantic },
+                      { label: 'Behavioral STAR Match', value: b.stage_2_behavioral_star },
+                      { label: 'Platform Signals Match', value: b.stage_3_platform_signals },
+                      { label: 'Career Progression', value: career },
+                      { label: 'Domain Experience', value: domain }
+                    ];
+
+                    return list.map((item, idx) => (
+                      <div key={idx} className="breakdown-item">
+                        <span className="breakdown-label">{item.label}</span>
+                        <div className="breakdown-bar">
+                          <div 
+                            className="breakdown-fill"
+                            style={{ 
+                              width: `${item.value}%`,
+                              backgroundColor: getScoreColor(item.value)
+                            }}
+                          ></div>
+                        </div>
+                        <span className="breakdown-value">{item.value}%</span>
                       </div>
-                      <span className="breakdown-value">{value}%</span>
-                    </div>
-                  ))}
+                    ));
+                  })()}
                 </div>
               </div>
 
@@ -283,6 +330,23 @@ const CandidateDetail = () => {
 
         {activeTab === 'insights' && (
           <div className="insights-tab">
+            {sessionId && (
+              <div className="justification-section">
+                <div className="section-header-justification">
+                  <FiZap className="insight-icon" style={{ color: '#10b981', marginRight: '8px' }} />
+                  <h4>AI Reasoning & Justification</h4>
+                </div>
+                {loadingJustification ? (
+                  <div className="skeleton-loader-justification">
+                    <div className="skeleton-line"></div>
+                    <div className="skeleton-line"></div>
+                    <div className="skeleton-line"></div>
+                  </div>
+                ) : (
+                  <p className="justification-text">{justification || 'No justification recorded.'}</p>
+                )}
+              </div>
+            )}
             <AIInsightCard insights={candidate.aiInsights} />
           </div>
         )}

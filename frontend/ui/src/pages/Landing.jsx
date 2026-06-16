@@ -8,6 +8,7 @@ const Landing = () => {
   const navigate = useNavigate();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadStatus, setUploadStatus] = useState({ jd: false, resumes: false });
+  const [jdText, setJdText] = useState(null);
 
   const handleJDUpload = async (e) => {
     e.preventDefault();
@@ -15,6 +16,7 @@ const Landing = () => {
     const result = await api.uploadJobDescription([{}]);
     if (result.success) {
       setUploadStatus(prev => ({ ...prev, jd: true }));
+      setJdText(result.data.description);
     }
   };
 
@@ -29,12 +31,19 @@ const Landing = () => {
 
   const handleStartAnalysis = async () => {
     setIsAnalyzing(true);
-    const result = await api.runAIAnalysis();
-    if (result.success) {
-      setTimeout(() => {
+    try {
+      const result = await api.runAIAnalysis(jdText);
+      if (result.success && result.session_id) {
         setIsAnalyzing(false);
-        navigate('/dashboard');
-      }, 1000);
+        navigate(`/dashboard?session=${result.session_id}`);
+      } else {
+        setIsAnalyzing(false);
+        alert('AI Analysis failed to return session tracking ID');
+      }
+    } catch (error) {
+      setIsAnalyzing(false);
+      console.error(error);
+      alert('Error running AI Analysis: ' + error.message);
     }
   };
 
