@@ -1,0 +1,95 @@
+# ==========================================
+# 1. Python (FastAPI Backend) Rules
+# ==========================================
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# Python bytecode & cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local configuration & environment variables (Crucial for API keys later)
+.env
+.env.local
+.env.*.local
+
+# Package build artifacts
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ==========================================
+# 2. Local AI & Model Cache Rules
+# ==========================================
+# Stops local HuggingFace / Sentence-Transformers from saving models into the repo
+.cache/
+.huggingface/
+models/
+*.bin
+*.onnx
+*.pt
+*.pth
+
+# ==========================================
+# 3. JavaScript / Node.js (React Frontend) Rules
+# ==========================================
+# Dependencies
+frontend/node_modules/
+node_modules/
+
+# Production build outputs
+frontend/dist/
+dist/
+
+# Frontend logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Vite local tracking
+frontend/.vite/
+.vite/
+
+# ==========================================
+# 4. System & Editor Files
+# ==========================================
+# Operating System specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs and Editors (VS Code, Cursor, PyCharm)
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+docs
