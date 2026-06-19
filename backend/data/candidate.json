@@ -196,5 +196,171 @@
       "verified_phone": true,
       "linkedin_connected": false
     }
+  },
+  {
+    "candidate_id": "CAND_0000050",
+    "profile": {
+      "anonymized_name": "Naina Bose",
+      "headline": "Business Analyst | Helping teams scale",
+      "summary": "Professional with 13.5+ years of experience. I'm a marketing manager with substantial experience in cross-functional collaboration, stakeholder management, and execution. Lately I've been curious about how AI tools could augment my work \u2014 I've experimented with ChatGPT and a few other tools for productivity and content creation, and I think the space is exciting. Open to roles where I can apply my domain expertise alongside emerging AI capabilities.",
+      "location": "Gurgaon, Haryana",
+      "country": "India",
+      "years_of_experience": 13.5,
+      "current_title": "Business Analyst",
+      "current_company": "Infosys",
+      "current_company_size": "10001+",
+      "current_industry": "IT Services"
+    },
+    "career_history": [
+      {
+        "company": "Infosys",
+        "title": "Business Analyst",
+        "start_date": "2022-09-15",
+        "end_date": null,
+        "duration_months": 45,
+        "is_current": true,
+        "industry": "IT Services",
+        "company_size": "10001+",
+        "description": "Mechanical engineering design role at a hardware-product company. Led the design of two product subsystems through full lifecycle: concept, DFM/DFMA review, prototype, production tooling. Comfortable with CAD (SolidWorks, Creo), FEA (ANSYS), and the typical hardware-development cadence. Worked closely with manufacturing partners on production scale-up."
+      },
+      {
+        "company": "TCS",
+        "title": "Marketing Manager",
+        "start_date": "2019-08-02",
+        "end_date": "2022-07-17",
+        "duration_months": 36,
+        "is_current": false,
+        "industry": "IT Services",
+        "company_size": "10001+",
+        "description": "Operations management role at a logistics company. Owned daily fulfillment operations across 3 warehouses, managing a team of 80 across receiving, picking, packing, and outbound. Built and tracked the operational KPIs (on-time fulfillment, accuracy, cost per order) and led the continuous improvement initiatives that drove a 22% productivity gain over 18 months."
+      },
+      {
+        "company": "Hooli",
+        "title": "HR Manager",
+        "start_date": "2017-03-15",
+        "end_date": "2019-07-03",
+        "duration_months": 28,
+        "is_current": false,
+        "industry": "Software",
+        "company_size": "1001-5000",
+        "description": "Senior accounting role at a mid-sized company \u2014 month-end close, financial reporting, statutory compliance (GAAP / Ind-AS), and tax filings. Owned the GL, fixed-asset register, and the audit-readiness function. Managed a team of 3 staff accountants. Built strong process discipline around the close cycle, reducing close time from 12 days to 7 over the last two years."
+      },
+      {
+        "company": "Acme Corp",
+        "title": "Content Writer",
+        "start_date": "2012-12-22",
+        "end_date": "2017-03-01",
+        "duration_months": 51,
+        "is_current": false,
+        "industry": "Manufacturing",
+        "company_size": "201-500",
+        "description": "Senior accounting role at a mid-sized company \u2014 month-end close, financial reporting, statutory compliance (GAAP / Ind-AS), and tax filings. Owned the GL, fixed-asset register, and the audit-readiness function. Managed a team of 3 staff accountants. Built strong process discipline around the close cycle, reducing close time from 12 days to 7 over the last two years."
+      }
+    ],
+    "education": [
+      {
+        "institution": "VIT Chennai",
+        "degree": "Ph.D",
+        "field_of_study": "Artificial Intelligence",
+        "start_year": 2001,
+        "end_year": 2005,
+        "grade": "6.66 CGPA",
+        "tier": "tier_3"
+      },
+      {
+        "institution": "Georgia Tech",
+        "degree": "B.Sc",
+        "field_of_study": "Artificial Intelligence",
+        "start_year": 2013,
+        "end_year": 2017,
+        "grade": "7.81 CGPA",
+        "tier": "tier_1"
+      }
+    ],
+    "skills": [
+      {
+        "name": "gRPC",
+        "proficiency": "intermediate",
+        "endorsements": 9,
+        "duration_months": 11
+      },
+      {
+        "name": "SEO",
+        "proficiency": "beginner",
+        "endorsements": 8,
+        "duration_months": 18
+      },
+      {
+        "name": "Feature Engineering",
+        "proficiency": "advanced",
+        "endorsements": 4,
+        "duration_months": 42
+      },
+      {
+        "name": "Marketing",
+        "proficiency": "beginner",
+        "endorsements": 0,
+        "duration_months": 15
+      },
+      {
+        "name": "Data Pipelines",
+        "proficiency": "beginner",
+        "endorsements": 0,
+        "duration_months": 15
+      },
+      {
+        "name": "Kafka",
+        "proficiency": "beginner",
+        "endorsements": 7,
+        "duration_months": 13
+      },
+      {
+        "name": "Excel",
+        "proficiency": "intermediate",
+        "endorsements": 10,
+        "duration_months": 23
+      }
+    ],
+    "certifications": [],
+    "languages": [
+      {
+        "language": "English",
+        "proficiency": "professional"
+      },
+      {
+        "language": "Hindi",
+        "proficiency": "conversational"
+      }
+    ],
+    "redrob_signals": {
+      "profile_completeness_score": 42.5,
+      "signup_date": "2023-01-23",
+      "last_active_date": "2025-10-22",
+      "open_to_work_flag": false,
+      "profile_views_received_30d": 34,
+      "applications_submitted_30d": 2,
+      "recruiter_response_rate": 0.42,
+      "avg_response_time_hours": 108.7,
+      "skill_assessment_scores": {
+        "Feature Engineering": 60.8
+      },
+      "connection_count": 245,
+      "endorsements_received": 22,
+      "notice_period_days": 90,
+      "expected_salary_range_inr_lpa": {
+        "min": 7.6,
+        "max": 22.9
+      },
+      "preferred_work_mode": "onsite",
+      "willing_to_relocate": false,
+      "github_activity_score": 44.7,
+      "search_appearance_30d": 87,
+      "saved_by_recruiters_30d": 2,
+      "interview_completion_rate": 0.58,
+      "offer_acceptance_rate": -1,
+      "verified_email": true,
+      "verified_phone": true,
+      "linkedin_connected": false
+    }
   }
 ]

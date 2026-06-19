@@ -4,6 +4,7 @@ from app.schemas import SkillModel
 from sentence_transformers import SentenceTransformer
 from typing import List
 
+# Keep the transformer instantiation clear of the loop execution context
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 def evaluate_semantic_skills(job_description_text: str, candidate_skills: List[SkillModel]) -> float:
@@ -21,4 +22,6 @@ def evaluate_semantic_skills(job_description_text: str, candidate_skills: List[S
     
     # 3. Ship data over the bridge—C++ processes it at bare-metal execution speeds
     final_score = cpp_ranker.calculate_fast_stage_1(jd_vector, prepared_skills)
-    return final_score
+    
+    # ABSOLUTE SAFETY GUARDRAIL: Clamp the C++ return value between 0.0 and 100.0
+    return float(min(max(final_score, 0.0), 100.0))

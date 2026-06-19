@@ -1,26 +1,23 @@
 import os
-import uuid
-import datetime
+import re
 import asyncio
 from typing import List
 import httpx
-from fastapi import FastAPI, Body, Depends, HTTPException
+from fastapi import FastAPI, Body, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 # Pipeline Scoring Core Imports
 from app.schemas import CandidateModel
 from app.stage_1_skills import evaluate_semantic_skills
-from app.stage_2_behavioral import evaluate_behavioral_star
 from app.stage_3_signals import calculate_platform_signals 
+from app.agent_prompts import STAR_SCORING_PROMPT
 
-# Database Configuration and Pydantic Schema Layers
-from app.db import get_leaderboard_collection
-from app.models import LeaderboardSessionDocument
-from app.agent_prompts import SCREENER_SYSTEM_PROMPT, BEHAVIORAL_SYSTEM_PROMPT, CRITIC_SYSTEM_PROMPT
+from fastapi.responses import StreamingResponse
+from app.exporter import convert_rankings_to_excel_stream
 
-app = FastAPI(title="Talent Context Ranker API (Multi-Agent MongoDB Engine)")
+app = FastAPI(title="Talent Context Ranker API (High-Speed Numerical Engine)")
 
-# Enable unrestricted development CORS policy
+# Enable CORS for frontend layout communications
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,187 +26,129 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuration for Local Ollama Inference (VRAM-Optimized Environment)
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 MODEL_NAME = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 
 
-async def call_local_agent(system_prompt: str, user_payload: str) -> str:
+async def extract_star_score(candidate_payload: str) -> float:
     """
-    Dispatches asynchronous network requests to the local Ollama instance.
-    Keeps prompts brief to ensure total VRAM footings remain comfortably within 6GB.
+    Sends the candidate JSON summary to Qwen and forces it to yield a 
+    single number, then extracts it safely using regex.
     """
-    combined_prompt = f"System: {system_prompt}\n\nUser Content: {user_payload}"
-    
     try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 OLLAMA_URL,
                 json={
                     "model": MODEL_NAME,
-                    "prompt": combined_prompt,
-                    "stream": False
+                    "prompt": f"System: {STAR_SCORING_PROMPT}\n\nUser Data:\n{candidate_payload}",
+                    "stream": False,
+                    "options": {
+                        "num_predict": 10,     # Extremely low to make the response instant
+                        "temperature": 0.0,    # 0.0 forces the model to be purely mathematical
+                        "num_gpu": 99
+                    }
                 }
             )
             if response.status_code != 200:
-                error_detail = response.text
-                raise HTTPException(
-                    status_code=500, 
-                    detail=f"Ollama execution error status: {response.status_code}. Detail: {error_detail}"
-                )
+                return 50.0 # Secure baseline fallback on inference slip
+                
+            raw_text = response.json().get("response", "").strip()
             
-            result_json = response.json()
-            return result_json.get("response", "").strip()
+            # Use Regex to clean out anything that isn't a direct integer digit
+            match = re.search(r'\d+', raw_text)
+            if match:
+                score = int(match.group())
+                return min(max(score, 0), 100) # Clamp between 0 and 100 safely
+            return 50.0
             
-    except httpx.RequestError as exc:
-        raise HTTPException(
-            status_code=503, 
-            detail=f"Connection failure to local Ollama runtime port: {exc}"
-        )
+    except Exception:
+        return 50.0 # Baseline fallback if local engine drops
 
 
-async def _execute_and_serialize_pipeline(job_description: str, candidates: List[CandidateModel]) -> List[dict]:
+@app.post("/api/rank/evaluate")
+async def evaluate_and_rank_fast(
+    job_description: str = Body(..., embed=True),
+    candidates: List[CandidateModel] = Body(...)
+):
     """
-    Executes the multi-agent pipeline: Runs Tech Screener and Behavioral Assessor 
-    CONCURRENTLY via asyncio.gather to save local GPU overhead, then hands 
-    both insights sequentially to the Editorial Critic for compilation.
+    High-Speed Stateless Evaluation: Extracts an analytical STAR number from Qwen, 
+    aggregates it directly into the overall mathematical score, ranks candidates 
+    in memory, and returns the list instantly without database storage overhead.
     """
-    results = []
+    if not candidates:
+        raise HTTPException(status_code=400, detail="Candidate roster cannot be empty.")
+        
+    evaluated_list = []
+    
     for candidate in candidates:
-        # Phase 1: Native C++ Core Module (Fast semantic parsing)
+        # Phase 1: Native C++ Core Module (Skills Match)
         semantic_score = evaluate_semantic_skills(job_description, candidate.skills)
         
         # Phase 3: Platform Telemetry Signal Evaluation
         platform_score = calculate_platform_signals(candidate.redrob_signals)
         
         # -----------------------------------------------------------------
-        # PHASE 2: LIGHTWEIGHT ASYNC MULTI-AGENT ORCHESTRATION LAYER
+        # NEW HIGH-SPEED NUMERICAL STAR ANALYSIS
         # -----------------------------------------------------------------
+        # Flatten candidate info into a clean, text-minimized JSON block for the prompt
+        candidate_json_payload = candidate.json(include={'profile', 'career_history'})
         
-        # Construct highly targeted payloads to preserve LLM input tokens
-        tech_payload = f"Target JD:\n{job_description}\n\nCandidate Skills: {candidate.skills}\nProfile Summary: {candidate.profile}"
-        behavioral_payload = f"Target JD:\n{job_description}\n\nCareer History:\n{candidate.career_history}\nProfile Summary: {candidate.profile}"
+        # Call local Qwen for the fast single-integer score
+        behavioral_star_score = await extract_star_score(candidate_json_payload)
         
-        # Fire Agent A and Agent B simultaneously to save hardware network cycle delay times
-        agent_a_task = call_local_agent(SCREENER_SYSTEM_PROMPT, tech_payload)
-        agent_b_task = call_local_agent(BEHAVIORAL_SYSTEM_PROMPT, behavioral_payload)
-        
-        # Extract notes out of the concurrent task resolution pool
-        screener_notes, assessor_notes = await asyncio.gather(agent_a_task, agent_b_task)
-        
-        # Group independent insights together for Agent C (The Critic)
-        critic_payload = (
-            f"Target JD:\n{job_description}\n\n"
-            f"--- Tech Screener Diagnostics ---\n{screener_notes}\n\n"
-            f"--- Behavioral Assessor Diagnostics ---\n{assessor_notes}"
-        )
-        
-        # Run the Editorial Critic agent sequentially to forge the final compiled result
-        ai_reasoning_paragraph = await call_local_agent(CRITIC_SYSTEM_PROMPT, critic_payload)
-        
-        # Retain original operational metrics calculation for the behavioral alignment rating
-        behavioral_score, _ = evaluate_behavioral_star(job_description, candidate.profile, candidate.career_history)
-        
-        # Comprehensive Aggregated Weight Matrix Logic Calculation:
-        # 40% Matrix Skills Match + 40% STAR Contextual Alignment + 20% Intent/Availability Signals
-        composite_score = (semantic_score * 0.40) + (behavioral_score * 0.40) + (platform_score * 0.20)
-        
-        results.append({
+        # Comprehensive Aggregated Weight Matrix Calculation (40/40/20)
+        # semantic_score (out of 100), behavioral_star_score (out of 100), platform_score (out of 100)
+        composite_score = (semantic_score * 0.40) + (behavioral_star_score * 0.40) + (platform_score * 0.20)
+        evaluated_list.append({
             "candidate_id": candidate.candidate_id,
             "final_score": round(composite_score, 2),
             "breakdown": {
                 "stage_1_skills_semantic": round(semantic_score, 2),
-                "stage_2_behavioral_star": round(behavioral_score, 2),
+                "stage_2_behavioral_star": round(behavioral_star_score, 2), # Clean integer score
                 "stage_3_platform_signals": round(platform_score, 2)
-            },
-            # This is your high-impact 7-8 line structured paragraph compiled by the Critic Agent
-            "ai_justification": ai_reasoning_paragraph
+            }
         })
         
-    # Order rankings directly by best score prior to returning
-    results.sort(key=lambda x: x["final_score"], reverse=True)
-    return results
-
-
-@app.post("/api/rank/evaluate")
-async def evaluate_candidates(
-    job_description: str = Body(..., embed=True),
-    candidates: List[CandidateModel] = Body(...),
-    collection = Depends(get_leaderboard_collection)
-):
-    """
-    Triggers multi-agent evaluation pipeline operations, saves results 
-    to MongoDB collections, and yields a secure, unguessable tracking UUID slug.
-    """
-    session_id = str(uuid.uuid4())
+    # 1. Sort the entire candidate roster based on final scores (highest first)
+    evaluated_list.sort(key=lambda x: x["final_score"], reverse=True)
     
-    # Run evaluation matrix pipeline across array elements
-    processed_rankings = await _execute_and_serialize_pipeline(job_description, candidates)
-    
-    # Map the verified Pydantic schema document state block
-    session_doc = LeaderboardSessionDocument(
-        session_id=session_id,
-        total_processed=len(processed_rankings),
-        rankings=processed_rankings
-    )
-    
-    # Save directly to MongoDB in one quick, structural async database commit
-    await collection.insert_one(session_doc.dict())
-    
+    # 2. Append the absolute integer ranking order positions
+    for index, record in enumerate(evaluated_list, start=1):
+        record["rank"] = index
+        
     return {
         "status": "success",
-        "session_id": session_id,
-        "total_processed": len(processed_rankings),
-        "rankings": processed_rankings
+        "total_processed": len(evaluated_list),
+        "rankings": evaluated_list
     }
-
-
-@app.get("/api/rank/leaderboard/{session_id}")
-async def get_stored_leaderboard(
-    session_id: str, 
-    collection = Depends(get_leaderboard_collection)
+@app.post("/api/rank/export")
+async def export_stateless_rankings(
+    rankings: List[dict] = Body(...)
 ):
     """
-    Optimized Summary Endpoint: Fetches candidate profiles while completely 
-    excluding the heavy text paragraph, preventing any network or dashboard lag.
+    Stateless Export Endpoint: Accepts the current sorted candidate 
+    rankings state directly from the client and converts it into a 
+    downloadable clean Excel Spreadsheet (.xlsx) file stream instantly.
     """
-    # MongoDB Projection Optimization: "rankings.ai_justification": 0 prevents text from streaming
-    document = await collection.find_one(
-        {"session_id": session_id},
-        projection={"_id": 0, "rankings.ai_justification": 0}
-    )
-    
-    if not document:
-        raise HTTPException(status_code=404, detail="Leaderboard execution signature not found.")
+    if not rankings:
+        raise HTTPException(status_code=400, detail="Rankings data matrix payload cannot be empty.")
         
-    return document
-
-
-@app.get("/api/rank/leaderboard/{session_id}/candidate/{candidate_id}/justification")
-async def get_candidate_justification(
-    session_id: str,
-    candidate_id: str,
-    collection = Depends(get_leaderboard_collection)
-):
-    """
-    Deep-Dive Detail Endpoint: Fetches and returns ONLY the 7-8 line text block for 
-    a specific candidate when clicked by the recruiter.
-    """
-    # Uses MongoDB '$elemMatch' projection to extract just one target element out of the data array
-    document = await collection.find_one(
-        {"session_id": session_id, "rankings.candidate_id": candidate_id},
-        projection={"_id": 0, "rankings.$": 1}
-    )
-    
-    if not document or "rankings" not in document:
-        raise HTTPException(status_code=404, detail="Candidate or Session matching signature not found.")
+    try:
+        # Generate the Excel data matrix byte stream out of memory block
+        excel_file_stream = convert_rankings_to_excel_stream(rankings)
         
-    target_candidate = document["rankings"][0]
-    return {
-        "candidate_id": candidate_id,
-        "ai_justification": target_candidate.get("ai_justification", "No justification recorded.")
-    }
-
+        # Dispatch a native browser-trigger file download attachment signature
+        return StreamingResponse(
+            excel_file_stream,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=AI_Recruiter_Leaderboard_Export.xlsx"}
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate tabular file attachment stream: {str(exc)}"
+        )
 
 if __name__ == "__main__":
     import uvicorn 

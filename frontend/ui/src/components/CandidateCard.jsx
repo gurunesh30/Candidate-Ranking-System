@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FiMapPin, FiBriefcase, FiArrowRight } from 'react-icons/fi';
 
-const CandidateCard = ({ candidate, sessionId }) => {
+const CandidateCard = ({ candidate, sessionId, onViewInsights }) => {
   // Determine score color based on overall score
   const getScoreColor = (score) => {
     if (score >= 90) return '#10b981'; // Green
@@ -62,31 +62,15 @@ const CandidateCard = ({ candidate, sessionId }) => {
           )}
         </div>
 
-        {/* ATS vs AI Score Comparison */}
-        <div className="score-comparison">
-          <div className="comparison-item">
-            <span className="comparison-label">ATS Score</span>
-            <span className="comparison-value ats">{candidate.atsScore}</span>
-          </div>
-          <div className="comparison-item">
-            <span className="comparison-label">AI Score</span>
-            <span className="comparison-value ai" style={{ color: scoreColor }}>
-              {candidate.overallScore}
-            </span>
-          </div>
-          <div className="comparison-difference">
-            <span className={`difference ${candidate.overallScore - candidate.atsScore >= 0 ? 'positive' : 'negative'}`}>
-              {candidate.overallScore - candidate.atsScore >= 0 ? '+' : ''}
-              {candidate.overallScore - candidate.atsScore}
-            </span>
-          </div>
+        <div className="card-actions" style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', width: '100%' }}>
+          <button onClick={onViewInsights} className="view-details-btn" style={{ flex: 1, background: 'var(--murray-accent)', color: 'white', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-md)' }}>
+            ✨ View Insights
+          </button>
+          <Link to={sessionId ? `/candidate/${sessionId}/${candidate.id}` : `/candidate/${candidate.id}`} className="view-details-btn" style={{ flex: 1, textAlign: 'center', background: 'transparent', color: 'var(--murray-accent)', border: '1px solid var(--murray-accent)' }}>
+            View Details
+            <FiArrowRight className="btn-icon" style={{ marginLeft: '4px' }} />
+          </Link>
         </div>
-
-        {/* View Details Button */}
-        <Link to={sessionId ? `/candidate/${sessionId}/${candidate.id}` : `/candidate/${candidate.id}`} className="view-details-btn">
-          View Details
-          <FiArrowRight className="btn-icon" />
-        </Link>
       </div>
     </div>
   );

@@ -77,9 +77,9 @@ const CandidateDetail = () => {
     return (
       <div className="not-found">
         <h2>Candidate not found</h2>
-        <button onClick={() => navigate('/dashboard')} className="back-btn">
+        <button onClick={() => navigate(-1)} className="back-btn">
           <FiArrowLeft className="btn-icon" />
-          Back to Dashboard
+          Back
         </button>
       </div>
     );
@@ -98,9 +98,9 @@ const CandidateDetail = () => {
     <div className="candidate-detail-page">
       {/* Header with Back Button */}
       <div className="detail-header">
-        <button onClick={() => navigate(sessionId ? `/dashboard?session=${sessionId}` : '/dashboard')} className="back-button">
+        <button onClick={() => navigate(-1)} className="back-button">
           <FiArrowLeft className="btn-icon" />
-          Back to Dashboard
+          Back
         </button>
         
         <div className="header-actions">

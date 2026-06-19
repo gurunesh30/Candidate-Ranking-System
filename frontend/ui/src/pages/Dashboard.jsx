@@ -1,7 +1,8 @@
 // Dashboard Page - Main recruiter interface with candidate ranking
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiSearch, FiFilter, FiSliders, FiTrendingUp } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiSliders, FiTrendingUp, FiDownload } from 'react-icons/fi';
+import * as XLSX from 'xlsx';
 import CandidateCard from '../components/CandidateCard';
 import WeightSliderPanel from '../components/WeightSliderPanel';
 import BlindspotVisualizer from '../components/BlindspotVisualizer';
@@ -31,10 +32,38 @@ const Dashboard = () => {
   });
   const [showWeightPanel, setShowWeightPanel] = useState(false);
   const [topCandidate, setTopCandidate] = useState(null);
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiResponseText, setAiResponseText] = useState('');
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [selectedAiCandidate, setSelectedAiCandidate] = useState(null);
 
   useEffect(() => {
     loadCandidates();
   }, [searchParams]);
+
+  const fetchAiResponse = async (candidate) => {
+    setSelectedAiCandidate(candidate);
+    setLoadingAi(true);
+    setShowAiModal(true);
+    setAiResponseText('');
+    try {
+      if (sessionId) {
+        const response = await api.getCandidateJustification(sessionId, candidate.id);
+        setAiResponseText(response);
+      } else {
+        setTimeout(() => {
+          setAiResponseText("This candidate exhibits a strong overlap with the required skills. Their experience aligns closely with the job requirements, and their behavioral indicators show a high potential for cultural fit.");
+          setLoadingAi(false);
+        }, 800);
+        return;
+      }
+    } catch (err) {
+      console.error(err);
+      setAiResponseText("Could not load AI response. Please try again later.");
+    } finally {
+      setLoadingAi(false);
+    }
+  };
 
   const loadCandidates = async () => {
     try {
@@ -64,6 +93,19 @@ const Dashboard = () => {
     setCandidates(updatedCandidates);
     const sorted = [...updatedCandidates].sort((a, b) => b.overallScore - a.overallScore);
     setTopCandidate(sorted[0]);
+  };
+
+  const handleExportExcel = () => {
+    const ranked = [...candidates].sort((a, b) => b.overallScore - a.overallScore);
+    const rows = ranked.map((c, i) => ({
+      'Candidate ID': c.id,
+      Name: c.name,
+      'Score (%)': c.overallScore,
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, 'Ranked Candidates');
+    XLSX.writeFile(wb, `ranked_candidates_${Date.now()}.xlsx`);
   };
 
   const filteredCandidates = candidates
@@ -117,6 +159,13 @@ const Dashboard = () => {
         </div>
         
         <div className="header-actions">
+          <button
+            className="icon-btn"
+            onClick={handleExportExcel}
+          >
+            <FiDownload className="btn-icon" />
+            <span>Export Results</span>
+          </button>
           <button 
             className={`icon-btn ${showWeightPanel ? 'active' : ''}`}
             onClick={() => setShowWeightPanel(!showWeightPanel)}
@@ -146,6 +195,14 @@ const Dashboard = () => {
                   <span className="stat">📍 {topCandidate.location}</span>
                   <span className="stat">💼 {topCandidate.experience}</span>
                   <span className="stat">🎯 {topCandidate.overallScore}% Match</span>
+                </div>
+                <div className="action-row" style={{ marginTop: '1rem' }}>
+                  <button 
+                    className="icon-btn active" 
+                    onClick={() => fetchAiResponse(topCandidate)}
+                  >
+                    ✨ View AI Response
+                  </button>
                 </div>
               </div>
             </div>
@@ -237,7 +294,12 @@ const Dashboard = () => {
               </div>
             ) : (
               filteredCandidates.map(candidate => (
-                <CandidateCard key={candidate.id} candidate={candidate} sessionId={sessionId} />
+                <CandidateCard 
+                  key={candidate.id} 
+                  candidate={candidate} 
+                  sessionId={sessionId} 
+                  onViewInsights={() => fetchAiResponse(candidate)} 
+                />
               ))
             )}
           </div>
@@ -263,6 +325,29 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+      {/* AI Response Modal */}
+      {showAiModal && (
+        <div className="ai-modal-overlay" onClick={() => setShowAiModal(false)}>
+          <div className="ai-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="ai-modal-header">
+              <h2>AI Insight for {selectedAiCandidate?.name}</h2>
+              <button className="close-btn" onClick={() => setShowAiModal(false)}>&times;</button>
+            </div>
+            <div className="ai-modal-body">
+              {loadingAi ? (
+                <div className="modal-loading">
+                  <div className="loading-spinner-large"></div>
+                  <p>Generating AI Insight...</p>
+                </div>
+              ) : (
+                <div className="ai-response-text">
+                  <p>{aiResponseText}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

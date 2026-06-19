@@ -77,9 +77,9 @@ const ComparisonPage = () => {
     <div className="comparison-page">
       {/* Header */}
       <div className="comparison-header-bar">
-        <button onClick={() => navigate(sessionId ? `/dashboard?session=${sessionId}` : '/dashboard')} className="back-button">
+        <button onClick={() => navigate(-1)} className="back-button">
           <FiArrowLeft className="btn-icon" />
-          Back to Dashboard
+          Back
         </button>
         
         <h1>Candidate Comparison</h1>
