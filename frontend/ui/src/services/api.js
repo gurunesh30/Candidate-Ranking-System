@@ -217,18 +217,6 @@ export const runAIAnalysis = async (jobDescriptionText, candidatesList) => {
   };
 };
 
-/**
- * Get deep-dive AI justification paragraph from backend
- */
-export const getCandidateJustification = async (sessionId, candidateId) => {
-  const response = await fetch(`${BASE_URL}/api/rank/leaderboard/${sessionId}/candidate/${candidateId}/justification`);
-  if (!response.ok) {
-    throw new Error(`Failed to load AI justification: ${response.statusText}`);
-  }
-  const result = await response.json();
-  return result.ai_justification;
-};
-
 export default {
   getCandidates,
   getCandidateById,
@@ -238,7 +226,6 @@ export default {
   getAllSkills,
   uploadJobDescription,
   uploadResumes,
-  runAIAnalysis,
-  getCandidateJustification
+  runAIAnalysis
 };
 

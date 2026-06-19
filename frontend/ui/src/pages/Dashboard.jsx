@@ -1,7 +1,7 @@
 // Dashboard Page - Main recruiter interface with candidate ranking
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiSearch, FiFilter, FiSliders, FiTrendingUp, FiDownload } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiSliders, FiTrendingUp, FiDownload, FiMapPin, FiBriefcase, FiCrosshair, FiCpu, FiX } from 'react-icons/fi';
 import * as XLSX from 'xlsx';
 import CandidateCard from '../components/CandidateCard';
 import WeightSliderPanel from '../components/WeightSliderPanel';
@@ -33,36 +33,15 @@ const Dashboard = () => {
   const [showWeightPanel, setShowWeightPanel] = useState(false);
   const [topCandidate, setTopCandidate] = useState(null);
   const [showAiModal, setShowAiModal] = useState(false);
-  const [aiResponseText, setAiResponseText] = useState('');
-  const [loadingAi, setLoadingAi] = useState(false);
   const [selectedAiCandidate, setSelectedAiCandidate] = useState(null);
 
   useEffect(() => {
     loadCandidates();
   }, [searchParams]);
 
-  const fetchAiResponse = async (candidate) => {
+  const fetchAiResponse = (candidate) => {
     setSelectedAiCandidate(candidate);
-    setLoadingAi(true);
     setShowAiModal(true);
-    setAiResponseText('');
-    try {
-      if (sessionId) {
-        const response = await api.getCandidateJustification(sessionId, candidate.id);
-        setAiResponseText(response);
-      } else {
-        setTimeout(() => {
-          setAiResponseText("This candidate exhibits a strong overlap with the required skills. Their experience aligns closely with the job requirements, and their behavioral indicators show a high potential for cultural fit.");
-          setLoadingAi(false);
-        }, 800);
-        return;
-      }
-    } catch (err) {
-      console.error(err);
-      setAiResponseText("Could not load AI response. Please try again later.");
-    } finally {
-      setLoadingAi(false);
-    }
   };
 
   const loadCandidates = async () => {
@@ -192,16 +171,16 @@ const Dashboard = () => {
                 <h2>{topCandidate.name}</h2>
                 <p className="role">{topCandidate.role}</p>
                 <div className="stats-row">
-                  <span className="stat">📍 {topCandidate.location}</span>
-                  <span className="stat">💼 {topCandidate.experience}</span>
-                  <span className="stat">🎯 {topCandidate.overallScore}% Match</span>
+                  <span className="stat"><FiMapPin style={{marginRight: '4px'}} /> {topCandidate.location}</span>
+                  <span className="stat"><FiBriefcase style={{marginRight: '4px'}} /> {topCandidate.experience}</span>
+                  <span className="stat"><FiCrosshair style={{marginRight: '4px'}} /> {topCandidate.overallScore}% Match</span>
                 </div>
                 <div className="action-row" style={{ marginTop: '1rem' }}>
                   <button 
                     className="icon-btn active" 
                     onClick={() => fetchAiResponse(topCandidate)}
                   >
-                    ✨ View AI Response
+                    <FiCpu style={{marginRight: '8px'}} /> View AI Response
                   </button>
                 </div>
               </div>
@@ -325,29 +304,82 @@ const Dashboard = () => {
           </div>
         )}
       </div>
-      {/* AI Response Modal */}
-      {showAiModal && (
-        <div className="ai-modal-overlay" onClick={() => setShowAiModal(false)}>
-          <div className="ai-modal-content" onClick={e => e.stopPropagation()}>
-            <div className="ai-modal-header">
-              <h2>AI Insight for {selectedAiCandidate?.name}</h2>
-              <button className="close-btn" onClick={() => setShowAiModal(false)}>&times;</button>
-            </div>
-            <div className="ai-modal-body">
-              {loadingAi ? (
-                <div className="modal-loading">
-                  <div className="loading-spinner-large"></div>
-                  <p>Generating AI Insight...</p>
+      {/* AI Scores Modal */}
+      {showAiModal && selectedAiCandidate && (() => {
+        const bd = selectedAiCandidate.breakdown || {};
+        const sb = selectedAiCandidate.scoreBreakdown || {};
+        const semantic  = bd.stage_1_skills_semantic  ?? sb.semanticMatch  ?? 0;
+        const behavioral = bd.stage_2_behavioral_star  ?? sb.behavioralMatch ?? 0;
+        const platform  = bd.stage_3_platform_signals ?? sb.domainExperience ?? 0;
+        const overall   = selectedAiCandidate.overallScore ?? 0;
+
+        const getColor = (v) => v >= 80 ? '#10b981' : v >= 60 ? '#3b82f6' : v >= 40 ? '#f59e0b' : '#ef4444';
+
+        const stages = [
+          { label: 'Semantic Skill Match', key: 'stage_1', value: semantic,   weight: '40%', icon: <FiSearch size={16}/> },
+          { label: 'Behavioral STAR Score', key: 'stage_2', value: behavioral, weight: '40%', icon: <FiCpu size={16}/> },
+          { label: 'Platform Signals',      key: 'stage_3', value: platform,   weight: '20%', icon: <FiTrendingUp size={16}/> },
+        ];
+
+        return (
+          <div className="ai-modal-overlay" onClick={() => setShowAiModal(false)}>
+            <div className="ai-modal-content" onClick={e => e.stopPropagation()}>
+              <div className="ai-modal-header">
+                <div className="modal-title-block">
+                  <h2>{selectedAiCandidate.name}</h2>
+                  <span className="modal-subtitle">{selectedAiCandidate.role}</span>
                 </div>
-              ) : (
-                <div className="ai-response-text">
-                  <p>{aiResponseText}</p>
+                <button className="close-btn" onClick={() => setShowAiModal(false)}><FiX size={20} /></button>
+              </div>
+
+              <div className="ai-modal-body">
+                {/* Overall score ring */}
+                <div className="modal-overall-row">
+                  <div className="modal-score-ring" style={{
+                    background: `conic-gradient(${getColor(overall)} ${overall}%, #e5e7eb ${overall}%)`
+                  }}>
+                    <span className="modal-ring-inner" style={{ color: getColor(overall) }}>{overall}</span>
+                  </div>
+                  <div className="modal-overall-label">
+                    <span className="label-heading">Overall AI Score</span>
+                    <span className="label-sub">Composite across 3 pipeline stages</span>
+                  </div>
                 </div>
-              )}
+
+                <div className="modal-stage-divider" />
+
+                {/* Stage breakdown */}
+                <div className="modal-stages">
+                  {stages.map(stage => (
+                    <div key={stage.key} className="modal-stage-row">
+                      <div className="stage-meta">
+                        <span className="stage-icon">{stage.icon}</span>
+                        <span className="stage-label">{stage.label}</span>
+                        <span className="stage-weight">{stage.weight} weight</span>
+                      </div>
+                      <div className="stage-bar-wrap">
+                        <div className="stage-bar-track">
+                          <div
+                            className="stage-bar-fill"
+                            style={{ width: `${stage.value}%`, backgroundColor: getColor(stage.value) }}
+                          />
+                        </div>
+                        <span className="stage-score" style={{ color: getColor(stage.value) }}>
+                          {stage.value}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="modal-engine-note">
+                  Scoring pipeline: C++ semantic engine (40%) + Qwen STAR numerical score (40%) + Platform signals (20%)
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

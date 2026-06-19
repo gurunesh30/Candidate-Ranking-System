@@ -1,5 +1,6 @@
 // WeightSliderPanel - Allows recruiters to adjust scoring weights
 import React from 'react';
+import { FiAlertTriangle } from 'react-icons/fi';
 
 const WeightSliderPanel = ({ weights, onWeightChange }) => {
   const weightCategories = [
@@ -48,7 +49,7 @@ const WeightSliderPanel = ({ weights, onWeightChange }) => {
         </div>
         {totalWeight !== 500 && (
           <p className="weight-warning">
-            ⚠️ For balanced scoring, total should equal 500% (100% per category)
+            <FiAlertTriangle style={{marginRight: '4px'}} /> For balanced scoring, total should equal 500% (100% per category)
           </p>
         )}
       </div>

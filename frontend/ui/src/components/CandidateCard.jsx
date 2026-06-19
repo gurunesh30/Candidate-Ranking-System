@@ -1,7 +1,7 @@
 // CandidateCard component - Displays candidate summary with score
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FiMapPin, FiBriefcase, FiArrowRight } from 'react-icons/fi';
+import { FiMapPin, FiBriefcase, FiArrowRight, FiCpu } from 'react-icons/fi';
 
 const CandidateCard = ({ candidate, sessionId, onViewInsights }) => {
   // Determine score color based on overall score
@@ -64,7 +64,7 @@ const CandidateCard = ({ candidate, sessionId, onViewInsights }) => {
 
         <div className="card-actions" style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', width: '100%' }}>
           <button onClick={onViewInsights} className="view-details-btn" style={{ flex: 1, background: 'var(--murray-accent)', color: 'white', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-md)' }}>
-            ✨ View Insights
+            <FiCpu style={{marginRight: '4px'}} /> View Insights
           </button>
           <Link to={sessionId ? `/candidate/${sessionId}/${candidate.id}` : `/candidate/${candidate.id}`} className="view-details-btn" style={{ flex: 1, textAlign: 'center', background: 'transparent', color: 'var(--murray-accent)', border: '1px solid var(--murray-accent)' }}>
             View Details

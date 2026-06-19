@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUpload, FiPlay, FiArrowRight, FiCheck, FiFileText, FiX, FiRefreshCw } from 'react-icons/fi';
+import { FiUpload, FiPlay, FiArrowRight, FiCheck, FiFileText, FiX, FiRefreshCw, FiZap, FiFolder, FiCpu, FiCrosshair, FiBarChart2, FiUsers, FiEye, FiSliders } from 'react-icons/fi';
 import api from '../services/api';
 
 const Landing = () => {
@@ -81,7 +81,7 @@ const Landing = () => {
       <section className="hero-section">
         <div className="hero-content">
           <div className="hero-badge">
-            <span className="badge-icon">🚀</span>
+            <FiZap className="badge-icon" />
             <span>AI-Powered Recruitment</span>
           </div>
 
@@ -143,25 +143,25 @@ const Landing = () => {
         <div className="steps-grid">
           <div className="step-card">
             <div className="step-number">1</div>
-            <div className="step-icon">📄</div>
+            <FiFileText className="step-icon" />
             <h3>Upload Job Description</h3>
             <p>Share your job requirements and we'll analyze what makes a candidate successful in this role.</p>
           </div>
           <div className="step-card">
             <div className="step-number">2</div>
-            <div className="step-icon">📁</div>
+            <FiFolder className="step-icon" />
             <h3>Upload Resumes</h3>
             <p>Submit candidate resumes in any format. Our AI parses and understands each profile deeply.</p>
           </div>
           <div className="step-card">
             <div className="step-number">3</div>
-            <div className="step-icon">🤖</div>
+            <FiCpu className="step-icon" />
             <h3>AI Analysis</h3>
             <p>Our AI evaluates candidates across 5 dimensions: semantic match, skills, behavior, career growth, and domain expertise.</p>
           </div>
           <div className="step-card">
             <div className="step-number">4</div>
-            <div className="step-icon">🎯</div>
+            <FiCrosshair className="step-icon" />
             <h3>Get Ranked Results</h3>
             <p>Receive intelligently ranked candidates with detailed insights and comparison tools.</p>
           </div>
@@ -289,32 +289,37 @@ const Landing = () => {
         <h2 className="section-title">Why RedRob AI?</h2>
         <div className="features-grid">
           <div className="feature-card">
-            <div className="feature-icon">🧠</div>
+            <FiCpu className="feature-icon" />
             <h3>Semantic Understanding</h3>
             <p>Understands context and meaning, not just keyword matching.</p>
           </div>
           <div className="feature-card">
-            <div className="feature-icon">⚖️</div>
+            <svg className="feature-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="2" x2="12" y2="6" />
+              <line x1="8" y1="22" x2="16" y2="22" />
+              <path d="M6 6l-4 10h8L6 6z" />
+              <path d="M18 6l-4 10h8l-4-10z" />
+            </svg>
             <h3>Fair Evaluation</h3>
             <p>Reduces bias by focusing on skills and potential rather than pedigree.</p>
           </div>
           <div className="feature-card">
-            <div className="feature-icon">📊</div>
+            <FiBarChart2 className="feature-icon" />
             <h3>Detailed Insights</h3>
             <p>Get comprehensive breakdowns of each candidate's strengths and areas for growth.</p>
           </div>
           <div className="feature-card">
-            <div className="feature-icon">🔄</div>
+            <FiSliders className="feature-icon" />
             <h3>Customizable Weights</h3>
             <p>Adjust scoring criteria based on your specific hiring priorities.</p>
           </div>
           <div className="feature-card">
-            <div className="feature-icon">👥</div>
+            <FiUsers className="feature-icon" />
             <h3>Candidate Comparison</h3>
             <p>Side-by-side comparison tools to make informed decisions.</p>
           </div>
           <div className="feature-card">
-            <div className="feature-icon">🎯</div>
+            <FiEye className="feature-icon" />
             <h3>ATS Blindspot Detection</h3>
             <p>Find great candidates that traditional systems would reject.</p>
           </div>

@@ -1,13 +1,12 @@
 // CandidateDetail Page - Detailed view of a single candidate
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  FiArrowLeft, FiMapPin, FiBriefcase, FiAward, 
-  FiBook, FiCheckCircle, FiTrendingUp, FiAlertCircle, FiZap 
+import {
+  FiArrowLeft, FiMapPin, FiBriefcase, FiAward,
+  FiBook, FiCheckCircle, FiTrendingUp, FiSearch, FiCpu, FiBarChart2
 } from 'react-icons/fi';
 import RadarChartComponent from '../components/RadarChartComponent';
 import BlindspotVisualizer from '../components/BlindspotVisualizer';
-import AIInsightCard from '../components/AIInsightCard';
 import api from '../services/api';
 import './CandidateDetail.css';
 
@@ -18,18 +17,9 @@ const CandidateDetail = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
 
-  const [justification, setJustification] = useState('');
-  const [loadingJustification, setLoadingJustification] = useState(false);
-
   useEffect(() => {
     loadCandidate();
   }, [id, sessionId]);
-
-  useEffect(() => {
-    if (activeTab === 'insights' && sessionId && !justification && !loadingJustification) {
-      loadJustification();
-    }
-  }, [activeTab, sessionId, id]);
 
   const loadCandidate = async () => {
     try {
@@ -38,29 +28,14 @@ const CandidateDetail = () => {
         const candidates = await api.getCandidates(sessionId);
         data = candidates.find(c => c.id.toString() === id.toString());
       }
-      
       if (!data) {
         data = await api.getCandidateById(id);
       }
-      
       setCandidate(data);
       setLoading(false);
     } catch (error) {
       console.error('Error loading candidate:', error);
       setLoading(false);
-    }
-  };
-
-  const loadJustification = async () => {
-    setLoadingJustification(true);
-    try {
-      const text = await api.getCandidateJustification(sessionId, id);
-      setJustification(text);
-    } catch (error) {
-      console.error('Error loading justification:', error);
-      setJustification('Failed to retrieve AI justification reasoning from MongoDB.');
-    } finally {
-      setLoadingJustification(false);
     }
   };
 
@@ -86,25 +61,37 @@ const CandidateDetail = () => {
   }
 
   const getScoreColor = (score) => {
-    if (score >= 90) return '#10b981';
-    if (score >= 80) return '#3b82f6';
-    if (score >= 70) return '#f59e0b';
+    if (score >= 80) return '#10b981';
+    if (score >= 60) return '#3b82f6';
+    if (score >= 40) return '#f59e0b';
     return '#ef4444';
   };
 
   const scoreColor = getScoreColor(candidate.overallScore);
 
+  // Resolve pipeline breakdown from backend or fallback
+  const bd = candidate.breakdown || {};
+  const sb = candidate.scoreBreakdown || {};
+  const semantic   = bd.stage_1_skills_semantic  ?? sb.semanticMatch  ?? 0;
+  const behavioral = bd.stage_2_behavioral_star  ?? sb.behavioralMatch ?? 0;
+  const platform   = bd.stage_3_platform_signals ?? sb.domainExperience ?? 0;
+
+  const pipelineStages = [
+    { label: 'Semantic Skill Match',   value: semantic,   weight: '40%', icon: <FiSearch size={15} /> },
+    { label: 'Behavioral STAR Score',  value: behavioral, weight: '40%', icon: <FiCpu size={15} /> },
+    { label: 'Platform Signals',       value: platform,   weight: '20%', icon: <FiTrendingUp size={15} /> },
+  ];
+
   return (
     <div className="candidate-detail-page">
-      {/* Header with Back Button */}
+      {/* Header */}
       <div className="detail-header">
         <button onClick={() => navigate(-1)} className="back-button">
           <FiArrowLeft className="btn-icon" />
           Back
         </button>
-        
         <div className="header-actions">
-          <button 
+          <button
             className="compare-btn"
             onClick={() => navigate(sessionId ? `/comparison?session=${sessionId}&c1=${candidate.id}` : `/comparison?c1=${candidate.id}`)}
           >
@@ -113,17 +100,17 @@ const CandidateDetail = () => {
         </div>
       </div>
 
-      {/* Main Profile Section */}
+      {/* Profile Section */}
       <div className="profile-section">
         <div className="profile-card">
           <div className="profile-avatar">
             {candidate.name.split(' ').map(n => n[0]).join('')}
           </div>
-          
+
           <div className="profile-info">
             <h1 className="profile-name">{candidate.name}</h1>
             <p className="profile-role">{candidate.role}</p>
-            
+
             <div className="profile-meta">
               <span className="meta-item">
                 <FiMapPin className="meta-icon" />
@@ -133,73 +120,57 @@ const CandidateDetail = () => {
                 <FiBriefcase className="meta-icon" />
                 {candidate.experience}
               </span>
-              <span className="meta-item">
-                <FiAward className="meta-icon" />
-                {candidate.certifications.length} Certifications
-              </span>
+              {candidate.certifications?.length > 0 && (
+                <span className="meta-item">
+                  <FiAward className="meta-icon" />
+                  {candidate.certifications.length} Certifications
+                </span>
+              )}
             </div>
 
             <p className="profile-summary">{candidate.summary}</p>
           </div>
 
+          {/* Overall score ring only — no ATS comparison */}
           <div className="profile-score">
-            <div 
+            <div
               className="score-circle-large"
-              style={{ 
-                background: `conic-gradient(${scoreColor} ${candidate.overallScore}%, #374151 ${candidate.overallScore}%)` 
+              style={{
+                background: `conic-gradient(${scoreColor} ${candidate.overallScore}%, #e5e7eb ${candidate.overallScore}%)`
               }}
             >
               <div className="score-content">
-                <span className="score-number">{candidate.overallScore}</span>
-                <span className="score-text">Overall Match</span>
+                <span className="score-number" style={{ color: scoreColor }}>{candidate.overallScore}</span>
+                <span className="score-text">AI Score</span>
               </div>
-            </div>
-            <div className="ats-comparison">
-              <span className="ats-label">ATS Score</span>
-              <span className="ats-value">{candidate.atsScore}</span>
-              <span className={`difference ${candidate.overallScore - candidate.atsScore >= 0 ? 'positive' : 'negative'}`}>
-                {candidate.overallScore - candidate.atsScore >= 0 ? '+' : ''}
-                {candidate.overallScore - candidate.atsScore}
-              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tab Navigation */}
+      {/* Tabs */}
       <div className="detail-tabs">
-        <button 
-          className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
-          onClick={() => setActiveTab('overview')}
-        >
-          Overview
-        </button>
-        <button 
-          className={`tab ${activeTab === 'experience' ? 'active' : ''}`}
-          onClick={() => setActiveTab('experience')}
-        >
-          Experience
-        </button>
-        <button 
-          className={`tab ${activeTab === 'skills' ? 'active' : ''}`}
-          onClick={() => setActiveTab('skills')}
-        >
-          Skills & Analysis
-        </button>
-        <button 
-          className={`tab ${activeTab === 'insights' ? 'active' : ''}`}
-          onClick={() => setActiveTab('insights')}
-        >
-          AI Insights
-        </button>
+        {['overview', 'experience', 'skills', 'insights'].map(tab => (
+          <button
+            key={tab}
+            className={`tab ${activeTab === tab ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab === 'overview'    ? 'Overview'
+            : tab === 'experience' ? 'Experience'
+            : tab === 'skills'     ? 'Skills & Analysis'
+            :                        'AI Score Breakdown'}
+          </button>
+        ))}
       </div>
 
       {/* Tab Content */}
       <div className="tab-content">
+
+        {/* ── OVERVIEW ── */}
         {activeTab === 'overview' && (
           <div className="overview-tab">
             <div className="overview-grid">
-              {/* Skills Section */}
               <div className="info-card">
                 <div className="card-header">
                   <FiCheckCircle className="card-icon" />
@@ -212,7 +183,6 @@ const CandidateDetail = () => {
                 </div>
               </div>
 
-              {/* Education Section */}
               <div className="info-card">
                 <div className="card-header">
                   <FiBook className="card-icon" />
@@ -229,25 +199,27 @@ const CandidateDetail = () => {
                 </div>
               </div>
 
-              {/* Certifications Section */}
-              <div className="info-card full-width">
-                <div className="card-header">
-                  <FiAward className="card-icon" />
-                  <h3>Certifications</h3>
+              {candidate.certifications?.length > 0 && (
+                <div className="info-card full-width">
+                  <div className="card-header">
+                    <FiAward className="card-icon" />
+                    <h3>Certifications</h3>
+                  </div>
+                  <div className="certifications-grid">
+                    {candidate.certifications.map((cert, index) => (
+                      <div key={index} className="certification-item">
+                        <FiAward className="cert-icon" />
+                        <span>{cert}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="certifications-grid">
-                  {candidate.certifications.map((cert, index) => (
-                    <div key={index} className="certification-item">
-                      <FiAward className="cert-icon" />
-                      <span>{cert}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
           </div>
         )}
 
+        {/* ── EXPERIENCE ── */}
         {activeTab === 'experience' && (
           <div className="experience-tab">
             <h3>Professional Experience</h3>
@@ -269,58 +241,45 @@ const CandidateDetail = () => {
           </div>
         )}
 
+        {/* ── SKILLS & ANALYSIS ── */}
         {activeTab === 'skills' && (
           <div className="skills-tab">
             <div className="skills-analysis-grid">
-              {/* Radar Chart */}
               <div className="chart-card">
                 <div className="card-header">
                   <FiTrendingUp className="card-icon" />
                   <h3>Skill Breakdown</h3>
                 </div>
                 <RadarChartComponent data={candidate} />
-                
-                <div className="score-breakdown-list">
-                  {(() => {
-                    const b = candidate.breakdown || {
-                      stage_1_skills_semantic: candidate.scoreBreakdown?.semanticMatch || 0,
-                      stage_2_behavioral_star: candidate.scoreBreakdown?.skillMatch || 0,
-                      stage_3_platform_signals: candidate.scoreBreakdown?.behavioralMatch || 0,
-                    };
-                    const career = candidate.scoreBreakdown?.careerProgression || 80;
-                    const domain = candidate.scoreBreakdown?.domainExperience || 80;
-                    
-                    const list = [
-                      { label: 'Semantic Match', value: b.stage_1_skills_semantic },
-                      { label: 'Behavioral STAR Match', value: b.stage_2_behavioral_star },
-                      { label: 'Platform Signals Match', value: b.stage_3_platform_signals },
-                      { label: 'Career Progression', value: career },
-                      { label: 'Domain Experience', value: domain }
-                    ];
 
-                    return list.map((item, idx) => (
-                      <div key={idx} className="breakdown-item">
-                        <span className="breakdown-label">{item.label}</span>
-                        <div className="breakdown-bar">
-                          <div 
-                            className="breakdown-fill"
-                            style={{ 
-                              width: `${item.value}%`,
-                              backgroundColor: getScoreColor(item.value)
-                            }}
-                          ></div>
-                        </div>
-                        <span className="breakdown-value">{item.value}%</span>
+                <div className="score-breakdown-list">
+                  {pipelineStages.map((stage, idx) => (
+                    <div key={idx} className="breakdown-item">
+                      <span className="breakdown-label">
+                        <span style={{ marginRight: 6, color: 'var(--murray-accent)', display: 'inline-flex', verticalAlign: 'middle' }}>{stage.icon}</span>
+                        {stage.label}
+                        <span className="breakdown-weight-badge">{stage.weight}</span>
+                      </span>
+                      <div className="breakdown-bar">
+                        <div
+                          className="breakdown-fill"
+                          style={{
+                            width: `${stage.value}%`,
+                            backgroundColor: getScoreColor(stage.value)
+                          }}
+                        />
                       </div>
-                    ));
-                  })()}
+                      <span className="breakdown-value" style={{ color: getScoreColor(stage.value) }}>
+                        {stage.value}%
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* ATS Blindspot */}
               <div className="blindspot-card">
-                <BlindspotVisualizer 
-                  atsScore={candidate.atsScore}
+                <BlindspotVisualizer
+                  atsScore={candidate.atsScore ?? 0}
                   aiScore={candidate.overallScore}
                 />
               </div>
@@ -328,26 +287,69 @@ const CandidateDetail = () => {
           </div>
         )}
 
+        {/* ── AI SCORE BREAKDOWN ── */}
         {activeTab === 'insights' && (
           <div className="insights-tab">
-            {sessionId && (
-              <div className="justification-section">
-                <div className="section-header-justification">
-                  <FiZap className="insight-icon" style={{ color: '#10b981', marginRight: '8px' }} />
-                  <h4>AI Reasoning & Justification</h4>
+            <div className="pipeline-breakdown-panel">
+              <div className="pipeline-header">
+                <FiBarChart2 className="pipeline-icon" />
+                <div>
+                  <h3>AI Pipeline Score Breakdown</h3>
+                  <p className="pipeline-subtitle">
+                    Composite: C++ Semantic Engine (40%) + Qwen STAR Numerical Score (40%) + Platform Signals (20%)
+                  </p>
                 </div>
-                {loadingJustification ? (
-                  <div className="skeleton-loader-justification">
-                    <div className="skeleton-line"></div>
-                    <div className="skeleton-line"></div>
-                    <div className="skeleton-line"></div>
-                  </div>
-                ) : (
-                  <p className="justification-text">{justification || 'No justification recorded.'}</p>
-                )}
               </div>
-            )}
-            <AIInsightCard insights={candidate.aiInsights} />
+
+              {/* Overall score hero */}
+              <div className="pipeline-overall">
+                <div
+                  className="pipeline-ring"
+                  style={{
+                    background: `conic-gradient(${scoreColor} ${candidate.overallScore}%, #e5e7eb ${candidate.overallScore}%)`
+                  }}
+                >
+                  <span className="pipeline-ring-inner" style={{ color: scoreColor }}>
+                    {candidate.overallScore}
+                  </span>
+                </div>
+                <div className="pipeline-overall-text">
+                  <span className="pipeline-overall-label">Overall AI Score</span>
+                  <span className="pipeline-overall-sub">Weighted composite across 3 stages</span>
+                </div>
+              </div>
+
+              {/* Stage cards */}
+              <div className="pipeline-stages">
+                {pipelineStages.map((stage, idx) => (
+                  <div key={idx} className="pipeline-stage-card">
+                    <div className="pipeline-stage-top">
+                      <span className="pipeline-stage-icon">{stage.icon}</span>
+                      <span className="pipeline-stage-label">{stage.label}</span>
+                      <span className="pipeline-stage-weight">{stage.weight} weight</span>
+                    </div>
+                    <div className="pipeline-stage-bar-wrap">
+                      <div className="pipeline-stage-track">
+                        <div
+                          className="pipeline-stage-fill"
+                          style={{
+                            width: `${stage.value}%`,
+                            backgroundColor: getScoreColor(stage.value)
+                          }}
+                        />
+                      </div>
+                      <span className="pipeline-stage-score" style={{ color: getScoreColor(stage.value) }}>
+                        {stage.value}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <p className="pipeline-note">
+                Scores are computed by a stateless multi-agent numerical pipeline. No text-based explanations are generated — only precise numerical signals.
+              </p>
+            </div>
           </div>
         )}
       </div>

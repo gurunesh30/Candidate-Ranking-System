@@ -1,7 +1,7 @@
 // Navbar component for RedRob AI Recruiter
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FiHome, FiUsers, FiBarChart2 } from 'react-icons/fi';
+import { FiHome, FiUsers, FiBarChart2, FiCpu } from 'react-icons/fi';
 
 const Navbar = () => {
   const location = useLocation();
@@ -16,7 +16,7 @@ const Navbar = () => {
     <nav className="navbar">
       <div className="navbar-container">
         <Link to="/" className="navbar-logo">
-          <span className="logo-icon">🤖</span>
+          <span className="logo-icon"><FiCpu /></span>
           <span className="logo-text">RedRob AI Recruiter</span>
         </Link>
         

@@ -1,7 +1,7 @@
 // ComparisonPage - Page for comparing two candidates side-by-side
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiArrowLeft, FiUserPlus } from 'react-icons/fi';
+import { FiArrowLeft, FiUserPlus, FiRepeat } from 'react-icons/fi';
 import CandidateComparison from '../components/CandidateComparison';
 import api from '../services/api';
 import './ComparisonPage.css';
@@ -77,7 +77,7 @@ const ComparisonPage = () => {
     <div className="comparison-page">
       {/* Header */}
       <div className="comparison-header-bar">
-        <button onClick={() => navigate(-1)} className="back-button">
+        <button onClick={() => navigate(sessionId ? `/dashboard?session=${sessionId}` : '/dashboard')} className="back-button">
           <FiArrowLeft className="btn-icon" />
           Back
         </button>
@@ -104,7 +104,7 @@ const ComparisonPage = () => {
         </div>
 
         <button className="swap-btn" onClick={handleSwap} title="Swap candidates">
-          ⇄
+          <FiRepeat size={24} />
         </button>
 
         <div className="selector-group">
