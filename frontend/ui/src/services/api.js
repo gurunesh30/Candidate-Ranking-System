@@ -29,6 +29,14 @@ const mapCandidateModelToFrontend = (model) => {
       position: c.title, 
       description: c.description 
     })),
+    certifications: model.certifications || [],
+    atsScore: model.atsScore ?? Math.floor(55 + (model.profile.years_of_experience * 3) % 25),
+    overallScore: model.overallScore ?? 80, // default fallback
+    breakdown: model.breakdown || {
+      stage_1_skills_semantic: 80,
+      stage_2_behavioral_star: 80,
+      stage_3_platform_signals: 80
+    },
     scoreBreakdown: { // fallback mock scores if needed
       semanticMatch: 85,
       skillMatch: 80,
@@ -104,33 +112,28 @@ export const getJobDescription = async () => {
 };
 
 /**
- * Calculate weighted score based on custom weights
+ * Calculate weighted score based on custom weights.
+ * weights = { semantic: number, behavioral: number, platform: number }
+ * Values represent percentages; they should sum to 100.
  */
 export const calculateWeightedScore = (candidate, weights) => {
-  // Backend uses breakdown sub-object or falls back to scoreBreakdown if breakdown is not yet set
-  const breakdown = candidate.breakdown || {
-    stage_1_skills_semantic: candidate.scoreBreakdown?.semanticMatch || 0,
-    stage_2_behavioral_star: candidate.scoreBreakdown?.behavioralMatch || 0,
-    stage_3_platform_signals: candidate.scoreBreakdown?.domainExperience || 0, // mock signal map
-  };
-  
-  const semantic = breakdown.stage_1_skills_semantic;
-  const skill = breakdown.stage_2_behavioral_star;
-  const behavioral = breakdown.stage_3_platform_signals;
-  const career = candidate.scoreBreakdown?.careerProgression || 80;
-  const domain = candidate.scoreBreakdown?.domainExperience || 80;
+  const bd = candidate.breakdown || {};
+  const sb = candidate.scoreBreakdown || {};
 
-  const totalWeight = weights.semantic + weights.skill + weights.behavioral + weights.career + weights.domain;
-  
-  const weightedScore = (
-    (semantic * weights.semantic) +
-    (skill * weights.skill) +
-    (behavioral * weights.behavioral) +
-    (career * weights.career) +
-    (domain * weights.domain)
-  ) / totalWeight;
-  
-  return Math.round(weightedScore);
+  const semantic   = bd.stage_1_skills_semantic  ?? sb.semanticMatch  ?? 0;
+  const behavioral = bd.stage_2_behavioral_star  ?? sb.behavioralMatch ?? 0;
+  const platform   = bd.stage_3_platform_signals ?? sb.domainExperience ?? 0;
+
+  const wSem  = (weights.semantic  ?? 40) / 100;
+  const wBeh  = (weights.behavioral ?? 40) / 100;
+  const wPlat = (weights.platform  ?? 20) / 100;
+
+  // Normalise in case sliders don't sum exactly to 100
+  const total = wSem + wBeh + wPlat || 1;
+
+  return Math.round(
+    ((semantic * wSem) + (behavioral * wBeh) + (platform * wPlat)) / total
+  );
 };
 
 /**

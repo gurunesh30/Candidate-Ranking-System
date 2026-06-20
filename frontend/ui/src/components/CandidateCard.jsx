@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FiMapPin, FiBriefcase, FiArrowRight, FiCpu } from 'react-icons/fi';
 
-const CandidateCard = ({ candidate, sessionId, onViewInsights }) => {
+const CandidateCard = ({ candidate, rank, sessionId, onViewInsights }) => {
   // Determine score color based on overall score
   const getScoreColor = (score) => {
     if (score >= 90) return '#10b981'; // Green
@@ -14,8 +14,22 @@ const CandidateCard = ({ candidate, sessionId, onViewInsights }) => {
 
   const scoreColor = getScoreColor(candidate.overallScore);
 
+  const getRankLabel = (r) => {
+    if (r === 1) return '🥇';
+    if (r === 2) return '🥈';
+    if (r === 3) return '🥉';
+    return `#${r}`;
+  };
+
   return (
     <div className="candidate-card">
+      {/* Rank Badge */}
+      {rank != null && (
+        <div className="rank-badge" title={`Rank #${rank}`}>
+          {getRankLabel(rank)}
+        </div>
+      )}
+
       {/* Score Badge */}
       <div 
         className="score-badge"

@@ -1,10 +1,10 @@
 // Dashboard Page - Main recruiter interface with candidate ranking
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiSearch, FiFilter, FiSliders, FiTrendingUp, FiDownload, FiMapPin, FiBriefcase, FiCrosshair, FiCpu, FiX } from 'react-icons/fi';
 import * as XLSX from 'xlsx';
 import CandidateCard from '../components/CandidateCard';
-import WeightSliderPanel from '../components/WeightSliderPanel';
+import WeightSliderPanel, { DEFAULT_WEIGHTS } from '../components/WeightSliderPanel';
 import BlindspotVisualizer from '../components/BlindspotVisualizer';
 import api from '../services/api';
 import './Dashboard.css';
@@ -14,6 +14,8 @@ const Dashboard = () => {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session');
   const [candidates, setCandidates] = useState([]);
+  // baseCandidates holds the original scores from the backend, never mutated by weight changes
+  const baseCandidatesRef = useRef([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('score'); // score, experience, name
@@ -23,13 +25,7 @@ const Dashboard = () => {
     minScore: 0,
     skills: []
   });
-  const [weights, setWeights] = useState({
-    semantic: 100,
-    skill: 100,
-    behavioral: 100,
-    career: 100,
-    domain: 100
-  });
+  const [weights, setWeights] = useState(DEFAULT_WEIGHTS);
   const [showWeightPanel, setShowWeightPanel] = useState(false);
   const [topCandidate, setTopCandidate] = useState(null);
   const [showAiModal, setShowAiModal] = useState(false);
@@ -47,6 +43,7 @@ const Dashboard = () => {
   const loadCandidates = async () => {
     try {
       const data = await api.getCandidates(sessionId);
+      baseCandidatesRef.current = data;
       setCandidates(data);
       
       // Find top candidate
@@ -61,14 +58,21 @@ const Dashboard = () => {
   };
 
   const handleWeightChange = (key, value) => {
-    setWeights(prev => ({ ...prev, [key]: value }));
-    
-    // Recalculate scores based on new weights
-    const updatedCandidates = candidates.map(candidate => {
-      const newScore = api.calculateWeightedScore(candidate, { ...weights, [key]: value });
+    const newWeights = { ...weights, [key]: value };
+    setWeights(newWeights);
+    applyWeights(newWeights);
+  };
+
+  const handleWeightReset = () => {
+    setWeights(DEFAULT_WEIGHTS);
+    applyWeights(DEFAULT_WEIGHTS);
+  };
+
+  const applyWeights = (newWeights) => {
+    const updatedCandidates = baseCandidatesRef.current.map(candidate => {
+      const newScore = api.calculateWeightedScore(candidate, newWeights);
       return { ...candidate, overallScore: newScore };
     });
-    
     setCandidates(updatedCandidates);
     const sorted = [...updatedCandidates].sort((a, b) => b.overallScore - a.overallScore);
     setTopCandidate(sorted[0]);
@@ -118,6 +122,14 @@ const Dashboard = () => {
       if (sortBy === 'name') return a.name.localeCompare(b.name);
       return 0;
     });
+
+  // Compute rank based on score-sorted order (used for rank badge on each card)
+  const rankedById = useMemo(() => {
+    const byscore = [...candidates].sort((a, b) => b.overallScore - a.overallScore);
+    const map = {};
+    byscore.forEach((c, i) => { map[c.id] = i + 1; });
+    return map;
+  }, [candidates]);
 
   if (loading) {
     return (
@@ -276,6 +288,7 @@ const Dashboard = () => {
                 <CandidateCard 
                   key={candidate.id} 
                   candidate={candidate} 
+                  rank={rankedById[candidate.id]}
                   sessionId={sessionId} 
                   onViewInsights={() => fetchAiResponse(candidate)} 
                 />
@@ -290,6 +303,7 @@ const Dashboard = () => {
             <WeightSliderPanel 
               weights={weights}
               onWeightChange={handleWeightChange}
+              onReset={handleWeightReset}
             />
             
             <div className="blindspot-section">

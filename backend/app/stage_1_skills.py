@@ -16,7 +16,7 @@ def evaluate_semantic_skills(job_description_text: str, candidate_skills: List[S
     
     # 2. Package skills into a clean list of tuples expected by the C++ memory module
     prepared_skills = []
-    for skill in candidate_skills:
+    for skill in candidate_skills:  
         skill_vector = embedding_model.encode(skill.name).tolist()
         prepared_skills.append((skill_vector, skill.proficiency.lower(), skill.duration_months))
     

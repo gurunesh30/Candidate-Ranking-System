@@ -8,13 +8,14 @@ import './ComparisonPage.css';
 
 const ComparisonPage = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [candidates, setCandidates] = useState([]);
-  const [selected1, setSelected1] = useState(searchParams.get('c1') || '');
-  const [selected2, setSelected2] = useState(searchParams.get('c2') || '');
   const [candidate1, setCandidate1] = useState(null);
   const [candidate2, setCandidate2] = useState(null);
   const [loading, setLoading] = useState(false);
+  
+  const selected1 = searchParams.get('c1') || '';
+  const selected2 = searchParams.get('c2') || '';
   const sessionId = searchParams.get('session');
 
   useEffect(() => {
@@ -32,12 +33,30 @@ const ComparisonPage = () => {
       const data = await api.getCandidates(sessionId);
       setCandidates(data);
       
-      // Auto-select first two if none selected
-      if (!selected1 && data.length > 0) {
-        setSelected1(data[0].id.toString());
+      let nextParams = null;
+      let s1 = selected1;
+      let s2 = selected2;
+
+      if (!s1 && data.length > 0) {
+        s1 = data[0].id.toString();
+        nextParams = nextParams || new URLSearchParams(searchParams);
+        nextParams.set('c1', s1);
       }
-      if (!selected2 && data.length > 1) {
-        setSelected2(data[1].id.toString());
+      if (!s2 && data.length > 1) {
+        const nextCand = data.find(c => c.id.toString() !== s1);
+        s2 = nextCand ? nextCand.id.toString() : data[1].id.toString();
+        nextParams = nextParams || new URLSearchParams(searchParams);
+        nextParams.set('c2', s2);
+      } else if (s1 && s2 && s1 === s2 && data.length > 1) {
+        // Prevent duplicate selection
+        const nextCand = data.find(c => c.id.toString() !== s1);
+        s2 = nextCand ? nextCand.id.toString() : data[1].id.toString();
+        nextParams = nextParams || new URLSearchParams(searchParams);
+        nextParams.set('c2', s2);
+      }
+
+      if (nextParams) {
+        setSearchParams(nextParams);
       }
     } catch (error) {
       console.error('Error loading candidates:', error);
@@ -67,17 +86,40 @@ const ComparisonPage = () => {
     }
   };
 
+  const handleSelect1Change = (val) => {
+    const params = new URLSearchParams(searchParams);
+    if (val) params.set('c1', val);
+    else params.delete('c1');
+    setSearchParams(params);
+  };
+
+  const handleSelect2Change = (val) => {
+    const params = new URLSearchParams(searchParams);
+    if (val) params.set('c2', val);
+    else params.delete('c2');
+    setSearchParams(params);
+  };
+
   const handleSwap = () => {
-    const temp = selected1;
-    setSelected1(selected2);
-    setSelected2(temp);
+    const params = new URLSearchParams(searchParams);
+    params.set('c1', selected2);
+    params.set('c2', selected1);
+    setSearchParams(params);
+  };
+
+  const handleBack = () => {
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate(sessionId ? `/dashboard?session=${sessionId}` : '/dashboard');
+    }
   };
 
   return (
     <div className="comparison-page">
       {/* Header */}
       <div className="comparison-header-bar">
-        <button onClick={() => navigate(sessionId ? `/dashboard?session=${sessionId}` : '/dashboard')} className="back-button">
+        <button onClick={handleBack} className="back-button">
           <FiArrowLeft className="btn-icon" />
           Back
         </button>
@@ -91,7 +133,7 @@ const ComparisonPage = () => {
           <label>Candidate 1</label>
           <select 
             value={selected1} 
-            onChange={(e) => setSelected1(e.target.value)}
+            onChange={(e) => handleSelect1Change(e.target.value)}
             className="candidate-select"
           >
             <option value="">Select Candidate</option>
@@ -111,7 +153,7 @@ const ComparisonPage = () => {
           <label>Candidate 2</label>
           <select 
             value={selected2} 
-            onChange={(e) => setSelected2(e.target.value)}
+            onChange={(e) => handleSelect2Change(e.target.value)}
             className="candidate-select"
           >
             <option value="">Select Candidate</option>

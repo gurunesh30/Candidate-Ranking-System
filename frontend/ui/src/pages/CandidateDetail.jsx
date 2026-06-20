@@ -86,7 +86,7 @@ const CandidateDetail = () => {
     <div className="candidate-detail-page">
       {/* Header */}
       <div className="detail-header">
-        <button onClick={() => navigate(-1)} className="back-button">
+        <button onClick={() => navigate(sessionId ? `/dashboard?session=${sessionId}` : '/dashboard')} className="back-button">
           <FiArrowLeft className="btn-icon" />
           Back
         </button>
@@ -131,17 +131,28 @@ const CandidateDetail = () => {
             <p className="profile-summary">{candidate.summary}</p>
           </div>
 
-          {/* Overall score ring only — no ATS comparison */}
+          {/* Overall score ring with ATS comparison */}
           <div className="profile-score">
-            <div
-              className="score-circle-large"
-              style={{
-                background: `conic-gradient(${scoreColor} ${candidate.overallScore}%, #e5e7eb ${candidate.overallScore}%)`
-              }}
-            >
-              <div className="score-content">
-                <span className="score-number" style={{ color: scoreColor }}>{candidate.overallScore}</span>
-                <span className="score-text">AI Score</span>
+            <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <div
+                className="score-circle-large"
+                style={{
+                  background: `conic-gradient(${scoreColor} ${candidate.overallScore}%, #e5e7eb ${candidate.overallScore}%)`
+                }}
+              >
+                <div className="score-content">
+                  <span className="score-number" style={{ color: scoreColor }}>{candidate.overallScore}</span>
+                  <span className="score-text">AI Score</span>
+                </div>
+              </div>
+
+              <div className="ats-comparison">
+                <span className="ats-label">ATS Score</span>
+                <span className="ats-value">{candidate.atsScore}%</span>
+                <span className={`difference ${candidate.overallScore >= candidate.atsScore ? 'positive' : 'negative'}`}>
+                  {candidate.overallScore >= candidate.atsScore ? '+' : ''}
+                  {candidate.overallScore - candidate.atsScore}% AI Boost
+                </span>
               </div>
             </div>
           </div>

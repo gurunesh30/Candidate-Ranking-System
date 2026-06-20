@@ -15,7 +15,7 @@ def generate_leaderboard_excel(document: dict) -> io.BytesIO:
         breakdown = candidate.get("breakdown", {})
         
         flattened_rows.append({
-            "Current Leaderboard Rank": index,
+            "Current Leaderboard Rank": candidate.get("rank", index),
             "Candidate Tracker ID": candidate.get("candidate_id"),
             "Composite Evaluation Score": candidate.get("final_score"),
             "Stage 1: Core C++ Skill Match": breakdown.get("stage_1_skills_semantic"),
@@ -35,3 +35,9 @@ def generate_leaderboard_excel(document: dict) -> io.BytesIO:
     # Reset stream cursor pointer position so FastAPI can read it out from the beginning
     excel_buffer.seek(0)
     return excel_buffer
+
+def convert_rankings_to_excel_stream(rankings_list: list) -> io.BytesIO:
+    """
+    Converts a list of candidate rankings directly to an Excel spreadsheet stream.
+    """
+    return generate_leaderboard_excel({"rankings": rankings_list})

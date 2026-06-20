@@ -1,7 +1,8 @@
 import os
 import re
+import uuid
 import asyncio
-from typing import List
+from typing import List, Dict, Any
 import httpx
 from fastapi import FastAPI, Body, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +17,10 @@ from fastapi.responses import StreamingResponse
 from app.exporter import convert_rankings_to_excel_stream
 
 app = FastAPI(title="Talent Context Ranker API (High-Speed Numerical Engine)")
+
+# In-memory session store: { session_id -> { rankings, total_processed, created_at } }
+# Avoids DB dependency while still enabling the leaderboard endpoint
+_session_store: Dict[str, Any] = {}
 
 # Enable CORS for frontend layout communications
 app.add_middleware(
@@ -116,12 +121,40 @@ async def evaluate_and_rank_fast(
     # 2. Append the absolute integer ranking order positions
     for index, record in enumerate(evaluated_list, start=1):
         record["rank"] = index
+
+    # 3. Generate a unique session ID and persist rankings in-memory
+    session_id = str(uuid.uuid4())
+    _session_store[session_id] = {
+        "rankings": evaluated_list,
+        "total_processed": len(evaluated_list),
+    }
         
     return {
         "status": "success",
+        "session_id": session_id,
         "total_processed": len(evaluated_list),
         "rankings": evaluated_list
     }
+@app.get("/api/rank/leaderboard/{session_id}")
+async def get_leaderboard(session_id: str):
+    """
+    Retrieves previously evaluated rankings for a given session ID.
+    Rankings are stored in-memory after /api/rank/evaluate is called.
+    """
+    session = _session_store.get(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Session '{session_id}' not found. It may have expired or the server was restarted."
+        )
+    return {
+        "status": "success",
+        "session_id": session_id,
+        "total_processed": session["total_processed"],
+        "rankings": session["rankings"],
+    }
+
+
 @app.post("/api/rank/export")
 async def export_stateless_rankings(
     rankings: List[dict] = Body(...)

@@ -132,10 +132,10 @@ const CandidateComparison = ({ candidate1, candidate2 }) => {
       <div className="comparison-chart-section">
         <h3>Skill Breakdown Comparison</h3>
         <RadarChartComponent 
-          data={candidate1.scoreBreakdown}
+          data={candidate1}
           multipleData={[
-            { name: candidate1.name, semanticMatch: candidate1.scoreBreakdown.semanticMatch, skillMatch: candidate1.scoreBreakdown.skillMatch, behavioralMatch: candidate1.scoreBreakdown.behavioralMatch, careerProgression: candidate1.scoreBreakdown.careerProgression, domainExperience: candidate1.scoreBreakdown.domainExperience },
-            { name: candidate2.name, semanticMatch: candidate2.scoreBreakdown.semanticMatch, skillMatch: candidate2.scoreBreakdown.skillMatch, behavioralMatch: candidate2.scoreBreakdown.behavioralMatch, careerProgression: candidate2.scoreBreakdown.careerProgression, domainExperience: candidate2.scoreBreakdown.domainExperience }
+            candidate1,
+            candidate2
           ]}
           colors={['#6366f1', '#8b5cf6']}
         />
@@ -143,6 +143,27 @@ const CandidateComparison = ({ candidate1, candidate2 }) => {
 
       {/* Detailed Comparison Grid */}
       <div className="comparison-grid">
+        {/* Scores Info */}
+        <div className="comparison-row">
+          <div className="comparison-label">Overall AI Score</div>
+          <div className="comparison-value" style={{ fontWeight: 'bold', color: getScoreColor(candidate1.overallScore) }}>
+            {candidate1.overallScore}%
+          </div>
+          <div className="comparison-value" style={{ fontWeight: 'bold', color: getScoreColor(candidate2.overallScore) }}>
+            {candidate2.overallScore}%
+          </div>
+        </div>
+
+        <div className="comparison-row">
+          <div className="comparison-label">ATS Score</div>
+          <div className="comparison-value" style={{ fontWeight: '500' }}>
+            {candidate1.atsScore}%
+          </div>
+          <div className="comparison-value" style={{ fontWeight: '500' }}>
+            {candidate2.atsScore}%
+          </div>
+        </div>
+
         {/* Basic Info */}
         <div className="comparison-row">
           <div className="comparison-label">Role</div>
