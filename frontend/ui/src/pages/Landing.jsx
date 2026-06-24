@@ -12,6 +12,10 @@ const Landing = () => {
   const [jdText, setJdText] = useState(null);
   const [jdFileName, setJdFileName] = useState('');
   const [resumeCount, setResumeCount] = useState(0);
+  const [jdFile, setJdFile] = useState(null);       // raw File object — do NOT read as text
+  const [jdFileName, setJdFileName] = useState('');
+  const [resumeCount, setResumeCount] = useState(0);
+  const [parsedJDTitle, setParsedJDTitle] = useState('');
 
   const handleJDUploadClick = () => {
     jdInputRef.current?.click();
@@ -31,6 +35,10 @@ const Landing = () => {
       }
     };
     reader.readAsText(file);
+    // Store the raw File object — .docx is a zip binary, don't read as text
+    setJdFile(file);
+    setJdFileName(file.name);
+    setUploadStatus(prev => ({ ...prev, jd: true }));
   };
 
   const handleResumeUploadClick = () => {
@@ -47,6 +55,9 @@ const Landing = () => {
   const clearJD = () => {
     setJdText(null);
     setJdFileName('');
+    setJdFile(null);
+    setJdFileName('');
+    setParsedJDTitle('');
     setUploadStatus(prev => ({ ...prev, jd: false }));
     if (jdInputRef.current) jdInputRef.current.value = '';
   };
@@ -62,6 +73,9 @@ const Landing = () => {
     try {
       const result = await api.runAIAnalysis(jdText);
       if (result.success && result.session_id) {
+      const result = await api.runAIAnalysis(jdFile);
+      if (result.success && result.session_id) {
+        if (result.parsedJD?.job_title) setParsedJDTitle(result.parsedJD.job_title);
         setIsAnalyzing(false);
         navigate(`/dashboard?session=${result.session_id}`);
       } else {
@@ -217,6 +231,9 @@ const Landing = () => {
                   placeholder="Job description content..."
                   rows={6}
                 />
+                <p style={{ margin: '8px 0 0', fontSize: '0.82rem', color: 'var(--text-muted, #8892a4)', padding: '0 4px' }}>
+                  ✓ Ready — the backend will parse this file when you start analysis.
+                </p>
               </div>
             )}
           </div>
@@ -269,6 +286,9 @@ const Landing = () => {
           className={`start-analysis-btn ${(!uploadStatus.jd || !uploadStatus.resumes) ? 'disabled' : ''}`}
           onClick={handleStartAnalysis}
           disabled={!uploadStatus.jd || !uploadStatus.resumes || isAnalyzing}
+          className={`start-analysis-btn ${!uploadStatus.jd ? 'disabled' : ''}`}
+          onClick={handleStartAnalysis}
+          disabled={!uploadStatus.jd || isAnalyzing}
         >
           {isAnalyzing ? (
             <>

@@ -69,6 +69,14 @@ export const getCandidates = async (sessionId) => {
         }
       };
     });
+/**
+ * Fetch all candidates from the session leaderboard (no local candidate data).
+ * The backend now handles the 100k dataset; frontend only gets the top 100.
+ */
+export const getCandidates = async (sessionId) => {
+  if (!sessionId) {
+    // If no sessionId, return empty array — frontend should never hold the full dataset
+    return [];
   }
 
   const response = await fetch(`${BASE_URL}/api/rank/leaderboard/${sessionId}`);
@@ -102,6 +110,51 @@ export const getCandidateById = async (id) => {
     throw new Error('Candidate not found');
   }
   return mapCandidateModelToFrontend(candidate);
+  // Map the ranked results (already enriched by backend)
+  return rankings.map(rank => ({
+    id:           rank.candidate_id,
+    overallScore: rank.final_score,
+    reasoning:    rank.reasoning,
+    rank:         rank.rank,
+    breakdown:    rank.breakdown,
+    // The rest of the fields will be populated lazily via getCandidateById if needed
+    name:         `Candidate ${rank.candidate_id.slice(-6)}`, // placeholder
+    role:         "AI‑Ranked Candidate",
+    summary:      "",
+    location:     "",
+    experience:   "",
+    experienceYears: 0,
+    skills:       [],
+    education:    [],
+    experience_details: [],
+    certifications: [],
+    atsScore:     0,
+    scoreBreakdown: {},
+  }));
+};
+
+/**
+ * Get a single candidate by ID — NOT USED for 100k dataset; only for demo/fallback.
+ */
+export const getCandidateById = async (id) => {
+  // No longer load full dataset; return a minimal placeholder
+  return {
+    id,
+    name: `Candidate ${id.slice(-6)}`,
+    role: "AI‑Ranked Candidate",
+    summary: "Detailed profile available only in backend dataset.",
+    location: "Unknown",
+    experience: "Unknown",
+    experienceYears: 0,
+    skills: [],
+    education: [],
+    experience_details: [],
+    certifications: [],
+    atsScore: 0,
+    overallScore: 0,
+    breakdown: {},
+    scoreBreakdown: {},
+  };
 };
 
 /**
@@ -162,6 +215,19 @@ export const getAllSkills = async () => {
     candidate.skills.forEach(skill => skills.add(skill.name));
   });
   return Array.from(skills).sort();
+ * Compare two candidates — NOT SUPPORTED for 100k dataset without session.
+ */
+export const compareCandidates = async (id1, id2) => {
+  throw new Error(
+    'Direct candidate comparison unavailable. Please run AI analysis first to get ranked candidates.'
+  );
+};
+
+/**
+ * Get all unique skills — NOT SUPPORTED for 100k dataset without loading it.
+ */
+export const getAllSkills = async () => {
+  return []; // cannot load 100k skills on frontend
 };
 
 /**
@@ -212,11 +278,64 @@ export const runAIAnalysis = async (jobDescriptionText, candidatesList) => {
   }
 
   const result = await response.json();
+ * Run AI analysis — new two‑step pipeline that avoids frontend OOM:
+ * 1. POST docx file to /api/jd/parse → get structured JD JSON + evaluation_text
+ * 2. POST structured job_description + candidate file to /api/rank/upload
+ *
+ * The candidate file can be a local .jsonl (100k entries) — backend streams it,
+ * frontend never loads the whole JSON into V8 heap.
+ *
+ * @param {File} jdFile - The raw .docx File object from the file input
+ * @param {File} candidateFile - The .jsonl file containing candidate dataset
+ */
+export const runAIAnalysis = async (jdFile, candidateFile) => {
+  if (!jdFile || !candidateFile) {
+    throw new Error('Both job description (.docx) and candidate dataset (.jsonl) files are required.');
+  }
+
+  // ── Step 1: Parse the .docx into structured JSON ────────────────────────
+  const formData1 = new FormData();
+  formData1.append('file', jdFile);
+
+  const parseResponse = await fetch(`${BASE_URL}/api/jd/parse`, {
+    method: 'POST',
+    body: formData1,
+  });
+
+  if (!parseResponse.ok) {
+    const errText = await parseResponse.text();
+    throw new Error(`Failed to parse job description: ${errText}`);
+  }
+
+  const parseResult = await parseResponse.json();
+  const parsedJD = parseResult.parsed_jd;
+
+  // ── Step 2: Upload candidate file and structured JD together ─────────────
+  const formData2 = new FormData();
+
+  // Job description as JSON blob
+  formData2.append('job_description', JSON.stringify(parsedJD));
+  // Candidate file as uploaded binary
+  formData2.append('candidate_file', candidateFile);
+
+  const evaluateResponse = await fetch(`${BASE_URL}/api/rank/upload`, {
+    method: 'POST',
+    body: formData2,
+  });
+
+  if (!evaluateResponse.ok) {
+    const errText = await evaluateResponse.text();
+    throw new Error(`Failed to evaluate candidates: ${errText}`);
+  }
+
+  const result = await evaluateResponse.json();
   return {
     success: true,
     session_id: result.session_id,
     analyzedCount: result.total_processed,
     rankings: result.rankings
+    rankings: result.rankings,
+    parsedJD,            // expose so Landing can display parsed title/dept if needed
   };
 };
 

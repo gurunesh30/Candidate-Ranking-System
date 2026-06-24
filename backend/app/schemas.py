@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 
 class SalaryRangeModel(BaseModel):
     min: float
@@ -85,6 +86,34 @@ class CandidateModel(BaseModel):
     certifications: List[str] = Field(default_factory=list)
     languages: List[Dict[str, str]] = Field(default_factory=list)
     redrob_signals: RedRobSignalsModel  # Phase 3 data contract binding
+
+    certifications: List[Any] = Field(default_factory=list)  # supports str or {name,issuer,year} objects
+    languages: List[Dict[str, str]] = Field(default_factory=list)
+    redrob_signals: RedRobSignalsModel  # Phase 3 data contract binding
+
+class JobDescriptionInput(BaseModel):
+    """Structured JD produced by the parser pipeline."""
+    job_title: str = "Unknown"
+    department: str = "Unknown"
+    experience_required: str = "Unknown"
+    core_technical_skills: List[str] = Field(default_factory=list)
+    behavioral_competencies: List[str] = Field(default_factory=list)
+    detailed_responsibilities: str = "Unknown"
+
+    def to_evaluation_text(self) -> str:
+        """Condense structured JD into a focused text string for semantic embedding."""
+        skills_text = ", ".join(self.core_technical_skills) if self.core_technical_skills else ""
+        parts = [
+            f"Role: {self.job_title}.",
+            f"Department: {self.department}.",
+            f"Experience: {self.experience_required}.",
+        ]
+        if skills_text:
+            parts.append(f"Required skills: {skills_text}.")
+        if self.detailed_responsibilities and self.detailed_responsibilities != "Unknown":
+            parts.append(f"Responsibilities: {self.detailed_responsibilities}")
+        return " ".join(parts)
+
 
 class RankingPayloadSchema(BaseModel):
     job_description: str
