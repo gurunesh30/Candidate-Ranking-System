@@ -7,7 +7,7 @@ import asyncio
 import json
 import tempfile
 from contextlib import asynccontextmanager
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import httpx
 from fastapi import FastAPI, Body, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,20 +32,56 @@ FINAL_KEEP   = 100   # Final heap cap: retain top-100 after composite scoring
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 MODEL_NAME  = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 
+# Path to the candidate dataset — resolved relative to this file's location
+CANDIDATE_JSONL_PATH = os.path.join(os.path.dirname(__file__), "data", "candidate.jsonl")
+
 # In-memory session store: { session_id -> { rankings, total_processed } }
 _session_store: Dict[str, Any] = {}
 
+# ---------------------------------------------------------------------------
+# Global candidate pool — loaded once at server startup
+# ---------------------------------------------------------------------------
+_candidate_pool: List[CandidateModel] = []
+
+
+def _load_candidate_pool() -> List[CandidateModel]:
+    """
+    Reads candidate.jsonl from disk line-by-line at startup.
+    Each valid line is parsed into a CandidateModel and stored in memory.
+    Invalid lines are skipped silently.
+    """
+    pool: List[CandidateModel] = []
+    if not os.path.exists(CANDIDATE_JSONL_PATH):
+        print(f"[WARN] candidate.jsonl not found at {CANDIDATE_JSONL_PATH}. Pool will be empty.")
+        return pool
+
+    with open(CANDIDATE_JSONL_PATH, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                cand_dict = json.loads(line)
+                pool.append(CandidateModel(**cand_dict))
+            except Exception:
+                continue
+
+    print(f"[INFO] Loaded {len(pool)} candidates into memory from {CANDIDATE_JSONL_PATH}")
+    return pool
+
 
 # ---------------------------------------------------------------------------
-# STEP 5 — Lifespan startup: pre-compute 150-sentence insight matrix ONCE
-# Using the modern FastAPI lifespan pattern (replaces deprecated on_event).
+# Lifespan startup: load candidates + pre-compute insight matrix
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # --- startup ---
+    global _candidate_pool
+    # Load candidate dataset into memory once
+    _candidate_pool = _load_candidate_pool()
+    # Pre-compute 150-sentence insight embedding matrix
     init_insight_matrix(embedding_model)
     yield
-    # --- shutdown (nothing to clean up) ---
+    # Shutdown — nothing to clean up
 
 
 app = FastAPI(
@@ -218,7 +254,7 @@ async def _evaluate_rankings_streaming(
 
 
 # ---------------------------------------------------------------------------
-# Endpoint 1: Legacy batch evaluate (for small payloads)
+# Endpoint 1: Legacy batch evaluate (for small payloads / testing)
 # ---------------------------------------------------------------------------
 
 @app.post("/api/rank/evaluate")
@@ -228,8 +264,7 @@ async def evaluate_and_rank_fast(
 ):
     """
     Legacy batch endpoint — expects the entire candidate list in the request body.
-    Only suitable for small test datasets (e.g., <1000 rows). For production
-    (100k candidates), use /api/rank/upload instead.
+    Only suitable for small test datasets. For production use /api/rank/start.
     """
     if not candidates:
         raise HTTPException(status_code=400, detail="Candidate roster cannot be empty.")
@@ -255,69 +290,31 @@ async def evaluate_and_rank_fast(
 
 
 # ---------------------------------------------------------------------------
-# Endpoint 2: File-based evaluate (for 100k candidates — no frontend OOM)
+# Endpoint 2: Production — rank against server-loaded candidate pool
 # ---------------------------------------------------------------------------
 
-@app.post("/api/rank/upload")
-async def evaluate_candidates_from_file(
-    job_description: str = Form(...),  # JSON string from FormData
-    candidate_file: UploadFile = File(...),
+@app.post("/api/rank/start")
+async def rank_against_loaded_pool(
+    job_description: JobDescriptionInput = Body(...),
 ):
     """
-    Production-grade endpoint: reads candidate JSONL file stream directly,
-    processes each line in memory, and returns only the top 100 ranked results.
-    Frontend never loads the full 100k JSON into V8 heap.
+    Production endpoint: uses the candidate pool already loaded into memory
+    at server startup (from candidate.jsonl). Frontend only sends the parsed JD.
+    No candidate data is ever sent over the network or loaded in the browser.
+    Returns the top-100 ranked candidates.
     """
-    if not candidate_file.filename.endswith(('.jsonl', '.json')):
-        raise HTTPException(status_code=400, detail="Only .jsonl or .json files are supported.")
+    if not _candidate_pool:
+        raise HTTPException(
+            status_code=503,
+            detail="Candidate pool is empty. Ensure candidate.jsonl exists in backend/data/ and restart the server.",
+        )
 
-    # Parse the job_description JSON string
-    try:
-        jd_dict = json.loads(job_description)
-        jd_model = JobDescriptionInput(**jd_dict)
-        jd_evaluation_text = jd_model.to_evaluation_text()
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid job_description JSON.")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid job description schema: {str(e)}")
-
-    total_input = 0
-    parsed_candidates: List[CandidateModel] = []
-
-    try:
-        # Read file chunk by chunk
-        while chunk := await candidate_file.read(64 * 1024):  # 64KB chunks
-            # Split into lines (assuming JSONL format: one JSON object per line)
-            for line in chunk.decode('utf-8').splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-
-                total_input += 1
-                try:
-                    cand_dict = json.loads(line)
-                    candidate = CandidateModel(**cand_dict)
-                    parsed_candidates.append(candidate)
-                except json.JSONDecodeError:
-                    # skip malformed lines
-                    continue
-                except Exception as e:
-                    # skip invalid schema lines
-                    continue
-
-        if total_input == 0:
-            raise HTTPException(status_code=400, detail="Candidate file appears empty or malformed.")
-
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to read candidate file: {str(exc)}")
-
-    # Now run the cascade funnel on the parsed list
-    ranked_results, processed = await _evaluate_rankings_streaming(
+    jd_evaluation_text = job_description.to_evaluation_text()
+    ranked_results, total_input = await _evaluate_rankings_streaming(
         jd_evaluation_text,
-        parsed_candidates,
+        _candidate_pool,
     )
 
-    # processed should equal total_input (minus any invalid lines)
     session_id = str(uuid.uuid4())
     _session_store[session_id] = {
         "rankings":        ranked_results,
@@ -328,7 +325,7 @@ async def evaluate_candidates_from_file(
         "status":          "success",
         "session_id":      session_id,
         "total_processed": total_input,
-        "rankings":        ranked_results,   # exactly 100 rows — V8-safe payload
+        "rankings":        ranked_results,   # exactly top-100 rows
     }
 
 

@@ -1,6 +1,6 @@
 // Dashboard Page - Main recruiter interface with candidate ranking
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { FiSearch, FiFilter, FiSliders, FiTrendingUp, FiDownload, FiMapPin, FiBriefcase, FiCrosshair, FiCpu, FiX } from 'react-icons/fi';
 import * as XLSX from 'xlsx';
 import CandidateCard from '../components/CandidateCard';
@@ -11,6 +11,7 @@ import './Dashboard.css';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session');
   const [candidates, setCandidates] = useState([]);
@@ -32,29 +33,67 @@ const Dashboard = () => {
   const [selectedAiCandidate, setSelectedAiCandidate] = useState(null);
 
   useEffect(() => {
-    loadCandidates();
-  }, [searchParams]);
+    // If rankings were passed directly via navigation state (from Landing after runAIAnalysis
+    // resolves), use them immediately — no second network round-trip needed.
+    const stateRankings = location.state?.rankings;
+    if (stateRankings && stateRankings.length > 0) {
+      initCandidates(stateRankings.map(api.mapRankedToFrontend ?? mapRankedLocal));
+    } else {
+      // Fallback: fetch from session leaderboard (e.g. page refresh or direct URL access)
+      loadCandidates();
+    }
+  }, [sessionId]);
 
-  const fetchAiResponse = (candidate) => {
-    setSelectedAiCandidate(candidate);
-    setShowAiModal(true);
+  // Local mapper in case api doesn't expose it as a named export
+  const mapRankedLocal = (rank) => ({
+    id:              rank.candidate_id,
+    name:            `Candidate ${rank.candidate_id.slice(-6)}`,
+    role:            'AI-Ranked Candidate',
+    summary:         rank.reasoning || '',
+    location:        '',
+    experience:      '',
+    experienceYears: 0,
+    skills:          [],
+    education:       [],
+    experience_details: [],
+    certifications:  [],
+    atsScore:        0,
+    overallScore:    rank.final_score,
+    rank:            rank.rank,
+    reasoning:       rank.reasoning,
+    breakdown:       rank.breakdown || {
+      stage_1_skills_semantic:  0,
+      stage_2_behavioral_star:  0,
+      stage_3_platform_signals: 0,
+    },
+    scoreBreakdown: {
+      semanticMatch:    rank.breakdown?.stage_1_skills_semantic  ?? 0,
+      behavioralMatch:  rank.breakdown?.stage_2_behavioral_star  ?? 0,
+      domainExperience: rank.breakdown?.stage_3_platform_signals ?? 0,
+    },
+  });
+
+  const initCandidates = (data) => {
+    baseCandidatesRef.current = data;
+    setCandidates(data);
+    const sorted = [...data].sort((a, b) => b.overallScore - a.overallScore);
+    setTopCandidate(sorted[0] || null);
+    setLoading(false);
   };
 
   const loadCandidates = async () => {
     try {
       const data = await api.getCandidates(sessionId);
-      baseCandidatesRef.current = data;
-      setCandidates(data);
-      
-      // Find top candidate
-      const sorted = [...data].sort((a, b) => b.overallScore - a.overallScore);
-      setTopCandidate(sorted[0]);
-      
-      setLoading(false);
+      initCandidates(data);
     } catch (error) {
       console.error('Error loading candidates:', error);
       setLoading(false);
     }
+  };
+
+  const fetchAiResponse = (candidate) => {
+    setSelectedAiCandidate(candidate);
+    setShowAiModal(true);
   };
 
   const handleWeightChange = (key, value) => {
