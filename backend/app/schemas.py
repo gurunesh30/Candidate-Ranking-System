@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import List, Dict, Optional
 from typing import Any, List, Dict, Optional
 
 class SalaryRangeModel(BaseModel):
@@ -82,6 +83,10 @@ class CandidateModel(BaseModel):
     career_history: List[CareerHistoryModel]
     education: List[EducationModel]
     skills: List[SkillModel]
+    certifications: List[str] = Field(default_factory=list)
+    languages: List[Dict[str, str]] = Field(default_factory=list)
+    redrob_signals: RedRobSignalsModel  # Phase 3 data contract binding
+
     certifications: List[Any] = Field(default_factory=list)  # supports str or {name,issuer,year} objects
     languages: List[Dict[str, str]] = Field(default_factory=list)
     redrob_signals: RedRobSignalsModel  # Phase 3 data contract binding

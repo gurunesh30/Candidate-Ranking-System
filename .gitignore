@@ -92,6 +92,7 @@ Thumbs.db
 *.swo
 *~
 
+docs
 dataset/
 docs/
 data
