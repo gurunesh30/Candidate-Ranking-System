@@ -10,6 +10,8 @@ def generate_leaderboard_csv(document: dict) -> io.BytesIO:
     Takes a raw session document, keeps only the top TOP_N candidates as ranked
     and marks the rest as rejected, then streams a CSV with four columns:
     candidate_id, rank, score, ai_reasoning.
+
+    Supports both 'reasoning' (new cascade pipeline) and legacy 'ai_reasoning' keys.
     """
     rankings_list = document.get("rankings", [])
 
@@ -17,7 +19,6 @@ def generate_leaderboard_csv(document: dict) -> io.BytesIO:
     rankings_list = sorted(rankings_list, key=lambda x: x.get("final_score", 0), reverse=True)
 
     output = io.BytesIO()
-    # CSV needs a text wrapper; we'll encode to bytes at the end
     text_buffer = io.StringIO()
 
     writer = csv.DictWriter(
@@ -29,7 +30,12 @@ def generate_leaderboard_csv(document: dict) -> io.BytesIO:
     for index, candidate in enumerate(rankings_list, start=1):
         if index <= TOP_N:
             rank_value = index
-            ai_reasoning = candidate.get("ai_reasoning", "")
+            # Accept both key names — new pipeline uses "reasoning"
+            ai_reasoning = (
+                candidate.get("reasoning")
+                or candidate.get("ai_reasoning")
+                or ""
+            )
         else:
             rank_value = "rejected"
             ai_reasoning = "rejected"
