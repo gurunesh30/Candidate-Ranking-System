@@ -4,7 +4,6 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
     "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite",
     "build": "vite build",
     "lint": "eslint .",
