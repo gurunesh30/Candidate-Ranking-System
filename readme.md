@@ -201,80 +201,106 @@ Candidates beyond rank 100 are marked `rejected`.
 
 ## Project Setup
 
+The entire stack — backend, frontend, and local LLM — runs as Docker containers. No manual Python environment, Node install, or Ollama setup required on your machine beyond Docker itself.
+
 ### Prerequisites
 
-| Dependency | Version | Notes |
-|---|---|---|
-| Python | 3.10+ | |
-| Node.js | 18+ | |
-| C++ compiler | MSVC (Windows) / GCC (Linux) | For pybind11 |
-| [Ollama](https://ollama.com/) | latest | Local LLM inference |
-| `qwen2.5:3b` model | — | `ollama pull qwen2.5:3b` |
+| Dependency | Notes |
+|---|---|
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | v24+ recommended |
+| `docker compose` | Included with Docker Desktop |
+| `candidate.jsonl` | Place in `backend/data/` before starting (gitignored) |
 
-### 1. Clone the repository
+### Services
+
+| Container | Port | Description |
+|---|---|---|
+| `redrob-backend` | `8000` | FastAPI + C++ ranker + sentence-transformers |
+| `redrob-frontend` | `3000` | React SPA served via nginx |
+| `redrob-ollama` | `11434` | Qwen 2.5:3b local LLM runtime |
+
+### Quick start
 
 ```bash
+# 1. Clone the repo
 git clone https://github.com/gurunesh30/Candidate-Ranking-System.git
 cd Candidate-Ranking-System
+
+# 2. Add the candidate dataset
+#    Place candidate.jsonl inside backend/data/ (file is gitignored)
+cp /path/to/candidate.jsonl backend/data/candidate.jsonl
+
+# 3. Build and start all services
+docker compose up --build
+
+# 4. Open the app
+#    Frontend → http://localhost:3000
+#    Backend API → http://localhost:8000
+#    API docs (Swagger) → http://localhost:8000/docs
 ```
 
-### 2. Backend setup
+> **First run only:** The `ollama` container automatically pulls `qwen2.5:3b` (~2 GB) on startup. Subsequent starts skip the download because model weights are stored in the `ollama-data` named volume.
+
+### Common commands
 
 ```bash
+# Start in detached (background) mode
+docker compose up -d
+
+# Tail backend logs in real time
+docker compose logs -f backend
+
+# Tail all service logs
+docker compose logs -f
+
+# Stop and remove containers (keeps volumes)
+docker compose down
+
+# Stop, remove containers AND volumes (deletes downloaded LLM model)
+docker compose down -v
+
+# Rebuild a single service after code changes
+docker compose up --build backend
+```
+
+### What happens at startup
+
+```
+docker compose up --build
+    │
+    ├── ollama        pulls qwen2.5:3b → serves on :11434
+    │
+    ├── backend       compiles C++ ranker (pybind11)
+    │                 downloads all-MiniLM-L6-v2 embeddings (build-time cache)
+    │                 loads candidate.jsonl into memory
+    │                 pre-computes 150 insight embeddings
+    │                 serves FastAPI on :8000
+    │
+    └── frontend      builds React bundle (Vite)
+                      serves static assets via nginx on :3000
+```
+
+### Without Docker (manual setup)
+
+If you prefer running services directly:
+
+```bash
+# Backend
 cd backend
-
-# Create and activate a virtual environment
-python -m venv env
-env\Scripts\activate        # Windows
-# source env/bin/activate   # Linux / macOS
-
-# Install dependencies
+python -m venv env && env\Scripts\activate   # Windows
 pip install -r requirements.txt
-
-# Compile the C++ cosine ranking engine
-python compile.py
-```
-
-### 3. Add the candidate dataset
-
-Place `candidate.jsonl` (one JSON object per line, matching `candidate_schema.json`) inside:
-```
-backend/data/candidate.jsonl
-```
-This file is gitignored — it is read line-by-line at server startup and never sent to the frontend.
-
-### 4. Start Ollama
-
-```bash
-ollama serve              # starts the local inference server
-ollama pull qwen2.5:3b    # download the model (first time only)
-```
-
-### 5. Start the backend
-
-```bash
-# From the backend/ directory
-python main.py
-# or
+python compile.py                            # compile C++ ranker
 uvicorn main:app --reload --port 8000
-```
 
-On startup the server will:
-- Load all candidates from `data/candidate.jsonl` into memory
-- Pre-compute 150 insight embeddings and cache them
-- Log: `[INFO] Loaded N candidates from ...`
+# Ollama (separate terminal)
+ollama serve
+ollama pull qwen2.5:3b
 
-### 6. Frontend setup
-
-```bash
+# Frontend (separate terminal)
 cd frontend/ui
 npm install
-npm run dev
+npm run dev    # runs on http://localhost:5173
 ```
-
-The frontend runs on `http://localhost:5173` and proxies API calls to `http://localhost:8000`.
-
-> **Windows note:** The `dev` script already uses `cross-env` to set `NODE_OPTIONS=--max-old-space-size=4096`, preventing Node heap OOM errors.
 
 ---
 
